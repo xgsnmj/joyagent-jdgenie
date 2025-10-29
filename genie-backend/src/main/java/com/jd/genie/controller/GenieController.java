@@ -16,9 +16,12 @@ import com.jd.genie.model.req.AgentRequest;
 import com.jd.genie.model.req.GptQueryReq;
 import com.jd.genie.service.AgentHandlerService;
 import com.jd.genie.service.IGptProcessService;
+import com.jd.genie.service.IChatHistoryService;
 import com.jd.genie.service.impl.AgentHandlerFactory;
+import com.jd.genie.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -48,6 +51,8 @@ public class GenieController {
     private AgentHandlerFactory agentHandlerFactory;
     @Autowired
     private IGptProcessService gptProcessService;
+    @Autowired
+    private IChatHistoryService chatHistoryService;
 
     /**
      * 开启SSE心跳
@@ -99,14 +104,18 @@ public class GenieController {
 
     /**
      * 执行智能体调度
-     * @param request
-     * @return
-     * @throws UnsupportedEncodingException
+     * @param request Agent请求对象
+     * @param httpRequest HTTP请求对象，用于获取用户认证信息
+     * @return SSE事件流
+     * @throws UnsupportedEncodingException 编码异常
      */
     @PostMapping("/AutoAgent")
-    public SseEmitter AutoAgent(@RequestBody AgentRequest request) throws UnsupportedEncodingException {
+    public SseEmitter AutoAgent(@RequestBody AgentRequest request, HttpServletRequest httpRequest) throws UnsupportedEncodingException {
 
         log.info("{} auto agent request: {}", request.getRequestId(), JSON.toJSONString(request));
+
+        // 获取当前用户ID（用于会话保存）
+        Long userId = getUserIdFromRequest(httpRequest);
 
         Long AUTO_AGENT_SSE_TIMEOUT = 60 * 60 * 1000L;
 
@@ -116,14 +125,42 @@ public class GenieController {
         // 监听SSE事件
         registerSSEMonitor(emitter, request.getRequestId(), heartbeatFuture);
         // 拼接输出类型
+        String originalQuery = request.getQuery(); // 保存原始query用于消息保存
         request.setQuery(handleOutputStyle(request));
+
+        // 创建或获取会话并保存用户消息（如果用户已登录）
+        if (userId != null && request.getSessionId() != null) {
+            try {
+                // 创建或获取会话
+                chatHistoryService.createOrGetSession(
+                        request.getSessionId(),
+                        userId,
+                        originalQuery.length() > 50 ? originalQuery.substring(0, 50) + "..." : originalQuery,
+                        request.getAgentType() != null ? String.valueOf(request.getAgentType()) : "default",
+                        request.getOutputStyle()
+                );
+
+                // 保存用户消息
+                chatHistoryService.saveMessage(
+                        request.getSessionId(),
+                        "user",
+                        originalQuery,
+                        null
+                );
+                log.info("会话消息已保存: sessionId={}, userId={}", request.getSessionId(), userId);
+            } catch (Exception e) {
+                log.error("保存会话消息失败: sessionId={}, error={}", request.getSessionId(), e.getMessage(), e);
+                // 继续执行，不因为保存失败而中断主流程
+            }
+        }
+
         // 执行调度引擎
         ThreadUtil.execute(() -> {
             try {
                 Printer printer = new SSEPrinter(emitter, request, request.getAgentType());
                 AgentContext agentContext = AgentContext.builder()
                         .requestId(request.getRequestId())
-                        .sessionId(request.getRequestId())
+                        .sessionId(request.getSessionId())
                         .printer(printer)
                         .query(request.getQuery())
                         .task("")
@@ -279,6 +316,29 @@ public class GenieController {
     @RequestMapping(value = "/web/api/v1/gpt/queryAgentStreamIncr", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter queryAgentStreamIncr(@RequestBody GptQueryReq params) {
         return gptProcessService.queryMultiAgentIncrStream(params);
+    }
+
+    /**
+     * 从请求中提取用户ID
+     * 从JWT Token中解析出当前登录用户的ID
+     *
+     * @param request HTTP请求对象
+     * @return 用户ID，如果未登录或Token无效则返回null
+     */
+    private Long getUserIdFromRequest(HttpServletRequest request) {
+        String authorization = request.getHeader("Authorization");
+        if (authorization == null || authorization.isEmpty()) {
+            return null;
+        }
+
+        // 提取Token（去除Bearer前缀）
+        String token = authorization;
+        if (authorization.startsWith("Bearer ")) {
+            token = authorization.substring(7);
+        }
+
+        // 从Token中获取用户ID
+        return JwtUtil.getUserIdFromToken(token);
     }
 
 }

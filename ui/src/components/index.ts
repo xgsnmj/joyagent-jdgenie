@@ -12,6 +12,10 @@ export { default as Slogn } from './Slogn';
 
 export { default as AttachmentList } from './AttachmentList';
 
+export { default as PrivateRoute } from './PrivateRoute';
+
+export { default as Sidebar } from './Sidebar';
+
 export { GeneralInput, LoadingDot, Logo };
 
 export * from './PlanView';

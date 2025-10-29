@@ -160,12 +160,12 @@ public class MultiAgentServiceImpl implements IMultiAgentService {
         request.setRequestId(req.getTraceId());
         request.setErp(req.getUser());
         request.setQuery(req.getQuery());
+        //根据如果是深度研究，则使用规划解决模式，否则使用REACT模式
         request.setAgentType(req.getDeepThink() == 0 ? 5: 3);
-        request.setSopPrompt(request.getAgentType() == 3 ? genieConfig.getGenieSopPrompt(): "");
-        request.setBasePrompt(request.getAgentType() == 5 ? genieConfig.getGenieBasePrompt() : "");
+        request.setSopPrompt(request.getAgentType().equals(AgentType.PLAN_SOLVE.getValue()) ? genieConfig.getGenieSopPrompt(): "");
+        request.setBasePrompt(request.getAgentType().equals(AgentType.REACT.getValue()) ? genieConfig.getGenieBasePrompt() : "");
         request.setIsStream(true);
         request.setOutputStyle(req.getOutputStyle());
-
         return request;
     }
 

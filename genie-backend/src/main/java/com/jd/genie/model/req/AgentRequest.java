@@ -19,12 +19,13 @@ import java.util.Map;
 @AllArgsConstructor
 public class AgentRequest {
     private String requestId;
+    private String sessionId; // 会话ID，用于会话历史跟踪
     private String erp;
     private String query;
     private Integer agentType;
-    private String basePrompt;
-    private String sopPrompt;
-    private Boolean isStream;
+    private String basePrompt;//基础提示词
+    private String sopPrompt;//标准步骤提示词
+    private Boolean isStream;//是否流式输出
     private List<Message> messages;
     private String outputStyle; // 交付物产出格式：html(网页模式）， docs(文档模式）， table(表格模式）
 

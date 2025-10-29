@@ -51,10 +51,10 @@ export const chatQustions = [
 
 export const productList = [
   {
-    name: "智能问数",
-    img: "icon-xinjianduihua",
-    type: "dataAgent",
-    placeholder: "Genie会完成你的数据分析任务",
+    name: "文档模式",
+    img: "icon-wendang",
+    type: "docs",
+    placeholder: "Genie会完成你的任务并以markdown格式输出文档",
     color: "text-[#4040FF]",
   },
   {
@@ -63,13 +63,6 @@ export const productList = [
     type: "html",
     placeholder: "Genie会完成你的任务并以HTML网页方式输出报告",
     color: "text-[#29CC29]",
-  },
-  {
-    name: "文档模式",
-    img: "icon-wendang",
-    type: "docs",
-    placeholder: "Genie会完成你的任务并以markdown格式输出文档",
-    color: "text-[#4040FF]",
   },
   {
     name: "PPT模式",
@@ -87,7 +80,7 @@ export const productList = [
   },
 ];
 
-export const defaultProduct = productList[0];
+export const defaultProduct = productList[0]; // 默认选中文档模式
 
 export const RESULT_TYPES = ["task_summary", "result"];
 

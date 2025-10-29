@@ -16,6 +16,7 @@ import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 import Logo from "../Logo";
 import { Modal } from "antd";
+import { useSessionStore } from "@/store/session";
 
 type Props = {
   inputInfo: CHAT.TInputInfo;
@@ -37,6 +38,9 @@ const ChatView: GenieType.FC<Props> = (props) => {
   const actionViewRef = ActionView.useActionView();
   const sessionId = useMemo(() => getSessionId(), []);
   const [modal, contextHolder] = Modal.useModal();
+
+  // 获取会话store中的setIsStreaming方法，用于同步流式输出状态
+  const { setIsStreaming } = useSessionStore();
 
   const combineCurrentChat = (
     inputInfo: CHAT.TInputInfo,
@@ -69,6 +73,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
       setChatTitle(message!);
     }
     setLoading(true);
+    setIsStreaming(true); // 同步流式输出状态
     const params = {
       sessionId: sessionId,
       requestId: requestId,
@@ -90,6 +95,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
         );
         currentChat.loading = false;
         setLoading(false);
+        setIsStreaming(false); // 同步流式输出状态
 
         setTaskList(taskData.taskList);
         return;
@@ -110,6 +116,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
             if (finished) {
               currentChat.loading = false;
               setLoading(false);
+              setIsStreaming(false); // 同步流式输出状态
             }
             const newChatList = [...chatList.current];
             newChatList.splice(newChatList.length - 1, 1, currentChat);
@@ -193,6 +200,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
 
     setChatTitle(inputInfo.message);
     setLoading(true);
+    setIsStreaming(true); // 同步流式输出状态
 
     const handleMessage = (data: any) => {
       // currentChat.loading = false;
@@ -207,10 +215,12 @@ const ChatView: GenieType.FC<Props> = (props) => {
           currentChat.error = data.data;
           currentChat.loading = false;
           setLoading(false);
+          setIsStreaming(false); // 同步流式输出状态
           break;
         case "READY":
           currentChat.loading = false;
           setLoading(false);
+          setIsStreaming(false); // 同步流式输出状态
           break;
       }
       const newChatList = [...dataChatList];

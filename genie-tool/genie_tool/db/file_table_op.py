@@ -1,4 +1,5 @@
 import os
+import re
 from typing import List
 
 from fastapi import UploadFile
@@ -9,6 +10,33 @@ from genie_tool.db.db_engine import async_session_local
 from genie_tool.util.log_util import timer
 
 
+def sanitize_path_name(path_name: str) -> str:
+    """
+    清理路径名中的非法字符，使其在Windows/Linux/Mac系统下都有效
+
+    Windows不允许的字符: < > : " / \ | ? *
+    Linux/Mac通常只禁止 / 和 null字符
+    将非法字符替换为下划线，确保跨平台兼容性
+
+    Args:
+        path_name: 原始路径名（如 "session-123:456"）
+
+    Returns:
+        清理后的路径名（如 "session-123_456"）
+    """
+    if not path_name:
+        return 'unnamed'
+
+    # 替换Windows非法字符为下划线
+    illegal_chars = r'[<>:"/\\|?*]'
+    sanitized = re.sub(illegal_chars, '_', path_name)
+
+    # 移除首尾空格和点号（Windows不允许目录名以点号结尾）
+    sanitized = sanitized.strip('. ')
+
+    return sanitized if sanitized else 'unnamed'
+
+
 class _FileDB(object):
     def __init__(self):
         self._work_dir = os.getenv("FILE_SAVE_PATH", "file_db_dir")
@@ -16,24 +44,53 @@ class _FileDB(object):
             os.makedirs(self._work_dir)
 
     async def save(self, file_name, content, scope) -> str:
+        """
+        保存文件内容到指定scope目录
+
+        Args:
+            file_name: 文件名
+            content: 文件内容
+            scope: 作用域（通常是request_id），会自动清理非法字符
+
+        Returns:
+            保存的文件完整路径
+        """
         if "." in file_name:
             file_name = os.path.basename(file_name)
         else:
             file_name = f"{file_name}.txt"
 
-        save_path = os.path.join(self._work_dir, scope)
+        # 清理scope中的非法字符（如冒号），确保Windows系统兼容
+        safe_scope = sanitize_path_name(scope)
+        save_path = os.path.join(self._work_dir, safe_scope)
+
         if not os.path.exists(save_path):
             os.makedirs(save_path)
-        with open(f"{save_path}/{file_name}", "w") as f:
+
+        # 使用utf-8编码，避免中文乱码
+        with open(f"{save_path}/{file_name}", "w", encoding='utf-8') as f:
             f.write(content)
+
         return f"{save_path}/{file_name}"
     
     async def save_by_data(self, file: UploadFile) -> str:
-        file_name = file.filename
+        """
+        保存上传的文件数据
+
+        Args:
+            file: 上传的文件对象
+
+        Returns:
+            保存的文件完整路径
+        """
+        # 清理文件名中的非法字符
+        file_name = sanitize_path_name(file.filename)
         file_data = file.file.read()
         save_path = os.path.join(self._work_dir, file_name)
+
         with open(save_path, "wb") as f:
-             f.write(file_data)
+            f.write(file_data)
+
         return save_path
 
 

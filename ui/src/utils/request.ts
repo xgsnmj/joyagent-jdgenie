@@ -8,9 +8,31 @@ const request: AxiosInstance = axios.create({
   headers: {'Content-Type': 'application/json',},
 });
 
+/**
+ * 获取存储的Token
+ * 从localStorage中获取持久化的用户token
+ */
+const getToken = (): string | null => {
+  try {
+    const userStorage = localStorage.getItem('user-storage');
+    if (userStorage) {
+      const { state } = JSON.parse(userStorage);
+      return state?.token || null;
+    }
+  } catch (error) {
+    console.error('获取token失败:', error);
+  }
+  return null;
+};
+
 // 请求拦截器
 request.interceptors.request.use(
   (config) => {
+    // 自动添加Authorization头
+    const token = getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -19,11 +41,20 @@ request.interceptors.request.use(
   }
 );
 
+/**
+ * 处理未认证情况
+ * 清除本地存储并跳转到登录页
+ */
 const noAuth = (url?: string) => {
-  showMessage()?.error('未登录');
-  if (url) {
-    location.href = url;
-  }
+  showMessage()?.error('未登录，请先登录');
+  // 清除用户信息
+  localStorage.removeItem('user-storage');
+  // 跳转到登录页
+  const redirectUrl = url || '/login';
+  // 延迟跳转，让用户看到提示信息
+  setTimeout(() => {
+    window.location.href = redirectUrl;
+  }, 500);
 };
 
 // 响应拦截器

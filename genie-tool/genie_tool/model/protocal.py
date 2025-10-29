@@ -62,7 +62,7 @@ class FileListRequest(BaseModel):
 
 
 class FileUploadRequest(FileRequest):
-    description: str = Field(description="返回的生成的文件描述")
+    description: Optional[str] = Field(default=None, description="返回的生成的文件描述")
     content: str = Field(description="返回的生成的文件内容")
 
 

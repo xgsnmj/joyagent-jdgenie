@@ -12,7 +12,6 @@ from genie_tool.db.file_table_op import FileInfoOp, get_file_preview_url, get_fi
 
 router = APIRouter(route_class=RequestHandlerRoute)
 
-
 @router.post("/get_file")
 async def get_file(
         body: FileRequest
@@ -72,6 +71,14 @@ async def get_file_list(body: FileListRequest):
 
 @router.get("/download/{file_id}/{file_name}")
 async def download_file(file_id: str, file_name: str):
+    """
+    下载文件接口
+
+    注意：
+    - 路径参数file_id实际上是request_id（历史遗留命名）
+    - file_info.file_path已经在保存时经过sanitize_path_name处理
+    - 因此可以直接使用，无需再次清理路径
+    """
     # TODO 目前 file_id 实际上是 request_id，后续统一修改
     file_id = get_file_id(file_id, file_name)
     file_info = await FileInfoOp.get_by_file_id(file_id=file_id)
