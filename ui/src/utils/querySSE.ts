@@ -48,12 +48,24 @@ interface SSEConfig {
 }
 
 /**
+ * SSE连接控制器
+ * 用于控制SSE连接的中断
+ */
+export interface SSEController {
+  abort: () => void;
+}
+
+/**
  * 创建服务器发送事件（SSE）连接
  * @param config SSE 配置
  * @param url 可选的自定义 URL
+ * @returns SSE控制器，用于中断连接
  */
-export default (config: SSEConfig, url: string = DEFAULT_SSE_URL): void => {
+export default (config: SSEConfig, url: string = DEFAULT_SSE_URL): SSEController => {
   const { body = null, handleMessage, handleError, handleClose } = config;
+
+  // 创建AbortController用于中断连接
+  const controller = new AbortController();
 
   fetchEventSource(url, {
     method: 'POST',
@@ -61,6 +73,7 @@ export default (config: SSEConfig, url: string = DEFAULT_SSE_URL): void => {
     headers: getSSEHeaders(), // 动态获取包含JWT token的请求头
     body: JSON.stringify(body),
     openWhenHidden: true,
+    signal: controller.signal, // 添加信号支持
     onmessage(event: EventSourceMessage) {
       if (event.data) {
         try {
@@ -81,4 +94,12 @@ export default (config: SSEConfig, url: string = DEFAULT_SSE_URL): void => {
       handleClose();
     }
   });
+
+  // 返回控制器，允许外部中断连接
+  return {
+    abort: () => {
+      console.log('Aborting SSE connection...');
+      controller.abort();
+    }
+  };
 };

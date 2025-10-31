@@ -66,6 +66,46 @@ public class ChatMessage implements Serializable {
     private String files;
 
     /**
+     * 思考过程（AI的思维链）
+     * 存储AI在生成回复过程中的思考内容
+     * 用于展示AI的推理过程，提升透明度
+     */
+    private String thought;
+
+    /**
+     * 任务详情（JSON数组）
+     * 存储AI执行任务的详细过程，包括所有中间步骤
+     * JSON数组格式示例：
+     * [
+     *   {
+     *     "id": "task-1",
+     *     "messageType": "task",
+     *     "result": "...",
+     *     "finish": true
+     *   }
+     * ]
+     */
+    private String tasks;
+
+    /**
+     * 计划信息（JSON对象）
+     * 存储AI制定的执行计划，包含计划标题和步骤列表
+     * JSON对象格式示例：
+     * {
+     *   "title": "执行计划",
+     *   "steps": ["步骤1", "步骤2"]
+     * }
+     */
+    private String plan;
+
+    /**
+     * 其他元数据（JSON对象）
+     * 存储额外的会话元数据信息，用于扩展性
+     * 可包含任意JSON格式的补充信息
+     */
+    private String metadata;
+
+    /**
      * 创建时间
      * 记录消息的发送/生成时间
      * 用于消息排序和时间线展示

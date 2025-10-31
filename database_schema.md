@@ -129,6 +129,10 @@ CREATE TABLE `chat_session` (
 | role | VARCHAR | 20 | NO | - | NO | NO | 消息角色（user/assistant/system） |
 | content | TEXT | - | YES | NULL | NO | NO | 消息内容 |
 | files | TEXT | - | YES | NULL | NO | NO | 附件文件信息（JSON格式） |
+| thought | TEXT | - | YES | NULL | NO | NO | 思考过程（AI的思维链） |
+| tasks | LONGTEXT | - | YES | NULL | NO | NO | 任务详情（JSON数组，包含所有任务执行过程） |
+| plan | TEXT | - | YES | NULL | NO | NO | 计划信息（JSON对象，包含计划标题和步骤） |
+| metadata | LONGTEXT | - | YES | NULL | NO | NO | 其他元数据（JSON对象，存储额外信息） |
 | create_time | DATETIME | - | YES | CURRENT_TIMESTAMP | NO | NO | 创建时间 |
 | yn | TINYINT | - | YES | 0 | NO | NO | 逻辑删除（0-未删除，1-已删除） |
 
@@ -145,6 +149,10 @@ CREATE TABLE `chat_message` (
   `role` VARCHAR(20) NOT NULL COMMENT '消息角色（user/assistant/system）',
   `content` TEXT COMMENT '消息内容',
   `files` TEXT COMMENT '附件文件信息（JSON格式）',
+  `thought` TEXT COMMENT '思考过程（AI的思维链）',
+  `tasks` LONGTEXT COMMENT '任务详情（JSON数组，包含所有任务执行过程）',
+  `plan` TEXT COMMENT '计划信息（JSON对象，包含计划标题和步骤）',
+  `metadata` LONGTEXT COMMENT '其他元数据（JSON对象，存储额外信息）',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `yn` TINYINT DEFAULT 0 COMMENT '逻辑删除（0-未删除，1-已删除）',
   PRIMARY KEY (`id`),
@@ -305,6 +313,57 @@ CREATE TABLE `sales_data` (
 
 ---
 
+### 7. file_info（文件信息表）
+
+用于存储genie-tool上传的文件元数据，包括搜索结果、生成的报告、代码执行结果等文件。
+
+**表名**: `file_info`
+
+| 字段名 | 类型 | 长度 | 允许NULL | 默认值 | 主键 | 自增 | 说明 |
+|--------|------|------|----------|--------|------|------|------|
+| id | BIGINT | - | NO | - | YES | YES | 文件记录ID（主键） |
+| file_id | VARCHAR | 64 | NO | - | NO | NO | 文件唯一标识符（MD5哈希值） |
+| filename | VARCHAR | 255 | NO | - | NO | NO | 文件名称 |
+| file_path | VARCHAR | 500 | NO | - | NO | NO | 文件存储路径 |
+| description | VARCHAR | 1000 | YES | NULL | NO | NO | 文件描述 |
+| file_size | BIGINT | - | YES | NULL | NO | NO | 文件大小（字节） |
+| status | TINYINT | - | YES | 0 | NO | NO | 文件状态（0-正常，1-已删除） |
+| request_id | VARCHAR | 200 | YES | NULL | NO | NO | 请求ID/会话ID |
+| create_time | DATETIME | - | YES | CURRENT_TIMESTAMP | NO | NO | 创建时间 |
+
+**索引**:
+- PRIMARY KEY (`id`)
+- UNIQUE KEY `uk_file_id` (`file_id`)
+- KEY `idx_request_id` (`request_id`)
+- KEY `idx_create_time` (`create_time`)
+
+**建表SQL**:
+```sql
+CREATE TABLE `file_info` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '文件记录ID（主键）',
+  `file_id` VARCHAR(64) NOT NULL COMMENT '文件唯一标识符（MD5）',
+  `filename` VARCHAR(255) NOT NULL COMMENT '文件名称',
+  `file_path` VARCHAR(500) NOT NULL COMMENT '文件存储路径',
+  `description` VARCHAR(1000) DEFAULT NULL COMMENT '文件描述',
+  `file_size` BIGINT DEFAULT NULL COMMENT '文件大小（字节）',
+  `status` TINYINT DEFAULT 0 COMMENT '文件状态（0-正常，1-已删除）',
+  `request_id` VARCHAR(200) DEFAULT NULL COMMENT '请求ID/会话ID',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_file_id` (`file_id`),
+  KEY `idx_request_id` (`request_id`),
+  KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文件信息表';
+```
+
+**字段说明**:
+- `file_id`: 通过 `MD5(request_id + filename)` 生成，确保唯一性
+- `file_path`: 实际存储路径，经过 `sanitize_path_name()` 清理非法字符
+- `request_id`: 关联到会话ID（`chat_session.session_id`）或请求ID，用于文件分组
+- `status`: 软删除标识，0表示正常，1表示已删除
+
+---
+
 ## 表关系说明
 
 1. **sys_user ↔ chat_session**: 一对多关系
@@ -395,6 +454,59 @@ CREATE TABLE `sales_data` (
   - `sys_user.email` 字段改为 NOT NULL（必填）
   - 新增 `uk_email` 唯一索引确保邮箱唯一性
   - 更新用户名和邮箱字段注释，明确格式要求和登录方式
+
+### 2025-10-30（完整会话数据保存功能）
+- **数据库schema变更**：
+  - `chat_message` 表新增 4 个字段用于保存完整会话数据：
+    - `thought` TEXT：思考过程（AI的思维链）
+    - `tasks` LONGTEXT：任务详情（JSON数组，包含所有任务执行过程）
+    - `plan` TEXT：计划信息（JSON对象，包含计划标题和步骤）
+    - `metadata` LONGTEXT：其他元数据（JSON对象，存储额外信息）
+- **功能目标**：
+  - 保存 AI 对话过程中的完整数据，包括思考过程、任务执行详情、计划信息等
+  - 历史会话查看时能够完整还原对话过程，包括所有交互元素
+  - 提升用户体验，让历史会话展示更加丰富和完整
+
+### 2025-10-30（thought字段格式优化）
+- **后端代码优化**：
+  - 修改 `ConversationDataCollector.getThoughtJson()` 方法
+  - 移除思考内容的类型标记前缀（`[plan]`、`[tool]`等）
+  - 直接保存纯净的思考内容，用双换行符分隔不同思考片段
+- **前端代码优化**：
+  - 修改 `Dialogue/index.tsx` 组件的条件渲染逻辑
+  - 移除 `thought` 和 `planList` 显示的 `deepThink` 限制
+  - 只要数据存在就显示，保证历史会话与实时对话显示一致
+- **优化效果**：
+  - 历史会话的思考过程不再包含技术标记，显示更清晰
+  - 实时对话和历史会话的显示体验完全一致
+  - 保持数据向后兼容，旧数据依然可以正常显示
+
+### 2025-10-30（会话消息收集功能重构）
+- **架构变更**：
+  - 从"后端重构前端数据"转变为"前端上报完整数据"的新架构
+  - 优先使用 `metadata.multiAgent` 存储前端完整数据结构
+  - 保留 `thought/tasks/plan` 字段作为fallback，确保向后兼容
+- **后端新增功能**：
+  - 新增 `UploadMultiAgentRequest` DTO用于接收前端上报的数据
+  - 新增 `POST /api/chat/sessions/{sessionId}/multiagent` API接口
+  - 新增 `updateMessageMetadata()` 方法更新消息的metadata字段
+  - 新增 `findAssistantMessageByRequestId()` 方法根据requestId查找消息
+  - 新增 `isSessionOwner()` 方法验证会话归属权限
+  - 增强 `ConversationDataCollector` 添加 `rawMessages` 备份字段
+- **前端新增功能**：
+  - 新增 `uploadMultiAgentData()` API调用方法
+  - 在对话完成时自动上报完整的 `multiAgent` 数据到后端
+  - 修改 `convertHistoryMessages()` 优先从 `metadata.multiAgent` 恢复数据
+  - 实现fallback机制：metadata不存在时从 `thought/tasks/plan` 重构数据
+- **数据流程**：
+  1. 实时对话：SSE流 → ConversationDataCollector收集 → 保存到thought/tasks/plan/metadata字段
+  2. 对话完成：前端上报multiAgent数据 → 后端更新metadata字段
+  3. 历史查询：优先使用metadata.multiAgent → 如无则从thought/tasks/plan重构（fallback）
+- **优势**：
+  - 100%准确保存前端渲染的所有信息（思考、任务、计划、工具调用等）
+  - 历史会话完整恢复，显示效果与实时对话完全一致
+  - 向后兼容旧数据，旧会话依然可以正常显示
+  - 后端提供双重保障：rawMessages备份 + thought/tasks/plan字段
 
 ---
 

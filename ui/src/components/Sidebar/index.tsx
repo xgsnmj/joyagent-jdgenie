@@ -28,7 +28,6 @@ const Sidebar: GenieType.FC<SidebarProps> = memo(({ className = '' }) => {
     fetchSessions,
     createNewSession,
     removeSession,
-    switchSession,
     clearCurrentSession,
   } = useSessionStore();
 
@@ -84,9 +83,11 @@ const Sidebar: GenieType.FC<SidebarProps> = memo(({ className = '' }) => {
 
   /**
    * 处理会话点击
+   * 跳转到首页并通过URL参数传递sessionId，复用历史会话加载逻辑
    */
   const handleSessionClick = (sessionId: string) => {
-    switchSession(sessionId);
+    // 跳转到首页，URL参数会触发Home组件加载历史会话
+    navigate(`/?sessionId=${sessionId}`);
   };
 
   /**

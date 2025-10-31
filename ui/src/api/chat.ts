@@ -4,11 +4,14 @@ import request from '@/utils/request';
  * 会话信息
  */
 export interface Session {
-  id: string | number;
+  id: string | number;          // 数据库主键
+  sessionId: string;             // 业务唯一标识符（UUID）
   title: string;
   createTime: string;
   updateTime: string;
   messageCount?: number;
+  agentType?: string;
+  outputStyle?: string;
   [key: string]: any;
 }
 
@@ -79,4 +82,23 @@ export const deleteSession = (sessionId: string | number): Promise<void> => {
  */
 export const createSession = (title?: string): Promise<Session> => {
   return request.post('/api/chat/sessions', title ? { title } : {});
+};
+
+/**
+ * 上报multiAgent数据
+ * 将完整的前端multiAgent数据结构上报到后端，用于历史会话的完整恢复
+ * @param sessionId - 会话ID
+ * @param requestId - 请求ID（用于关联到对应的assistant消息）
+ * @param multiAgent - 完整的multiAgent数据结构
+ * @returns Promise<void>
+ */
+export const uploadMultiAgentData = (
+  sessionId: string,
+  requestId: string,
+  multiAgent: any
+): Promise<void> => {
+  return request.post(`/api/chat/sessions/${sessionId}/multiagent`, {
+    requestId,
+    multiAgent
+  });
 };

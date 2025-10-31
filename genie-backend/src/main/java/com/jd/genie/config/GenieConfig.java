@@ -270,5 +270,12 @@ public class GenieConfig {
     @Value("${autobots.autoagent.tool.task_complete_desc:当前task完成，请将当前task标记为 completed}")
     private String taskCompleteDesc;
 
+    /**
+     * 多轮对话记忆配置
+     * 指定加载多少轮历史对话（默认5轮，即5个user+5个assistant消息）
+     */
+    @Value("${genie.conversation.historyRounds:5}")
+    private int conversationHistoryRounds;
+
 
 }

@@ -3,6 +3,7 @@ import AttachmentList from "@/components/AttachmentList";
 import LoadingDot from "@/components/LoadingDot";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { buildAction, getIcon, buildAttachment } from "@/utils/chat";
+import MarkdownRenderer from "@/components/ActionPanel/MarkdownRenderer";
 
 type Props = {
   chat: CHAT.ChatItem;
@@ -169,9 +170,24 @@ const TimeLine: FC<{
   changeActiveChat: (task: CHAT.Task) => void;
   changePlan?: () => void;
   changeFile?: (file: CHAT.TFile) => void;
-}> = ({ chat, isReactType, changeActiveChat, changePlan, changeFile }) => (
-  <>
-    {chat.tasks.map((t, i) => {
+}> = ({ chat, isReactType, changeActiveChat, changePlan, changeFile }) => {
+  // 添加TimeLine组件接收数据日志
+  console.log('[TimeLine] ===== 接收到的tasks =====', {
+    tasksCount: chat.tasks?.length || 0,
+    isReactType,
+    tasks: chat.tasks
+  });
+
+  chat.tasks.forEach((taskGroup, index) => {
+    console.log(`[TimeLine] TaskGroup ${index}:`, {
+      groupLength: taskGroup?.length || 0,
+      tasks: taskGroup
+    });
+  });
+
+  return (
+    <>
+      {chat.tasks.map((t, i) => {
       const lastTask = i === chat.tasks.length - 1;
       return (
         <div className="w-full flex" key={i}>
@@ -197,8 +213,9 @@ const TimeLine: FC<{
         </div>
       );
     })}
-  </>
-);
+    </>
+  );
+};
 
 const ConclusionSection: FC<{
   chat: CHAT.ChatItem;
@@ -210,7 +227,9 @@ const ConclusionSection: FC<{
     "任务已完成";
   return (
     <div className="mb-[8px]">
-      <div className="mb-[8px]">{summary}</div>
+      <div className="mb-[8px]">
+        <MarkdownRenderer markDownContent={summary} />
+      </div>
       <AttachmentList
         files={buildAttachment(chat.conclusion?.resultMap.fileList || [])}
         preview={true}
@@ -223,6 +242,29 @@ const ConclusionSection: FC<{
 const Dialogue: FC<Props> = (props) => {
   const { chat, deepThink, changeTask, changeFile, changePlan } = props;
   const isReactType = !deepThink;
+
+  // 添加详细的渲染日志
+  console.log('[Dialogue] ===== 开始渲染 =====', {
+    hasChat: !!chat,
+    query: chat?.query,
+    response: chat?.response?.substring(0, 100) + ((chat?.response?.length || 0) > 100 ? '...' : ''),
+    tasksCount: chat?.tasks?.length || 0,
+    thoughtLength: chat?.thought?.length || 0,
+    hasConclusion: !!chat?.conclusion,
+    hasPlanList: chat?.planList?.length || 0,
+    hasFiles: chat?.files?.length || 0,
+    loading: chat?.loading,
+    tip: chat?.tip
+  });
+
+  if (chat?.tasks && chat.tasks.length > 0) {
+    console.log('[Dialogue] tasks详细结构:', {
+      tasksGroups: chat.tasks.length,
+      firstGroupLength: chat.tasks[0]?.length || 0,
+      firstGroupPreview: chat.tasks[0]?.slice(0, 2),
+      allTasks: chat.tasks
+    });
+  }
 
   const changeActiveChat = (task: CHAT.Task) => {
     changeTask?.(task);
@@ -245,12 +287,12 @@ const Dialogue: FC<Props> = (props) => {
       {chat.tip ? (
         <div className="w-full rounded-[12px] mt-[24px]">{chat.tip}</div>
       ) : null}
-      {!isReactType && chat.thought ? (
+      {chat.thought ? (
         <div className="w-full px-12 py-8 bg-[#F2F3F7] rounded-[12px] mt-[24px]">
-          <div>{chat.thought}</div>
+          <div style={{ whiteSpace: 'pre-wrap' }}>{chat.thought}</div>
         </div>
       ) : null}
-      {!isReactType && chat.planList?.length ? (
+      {chat.planList?.length ? (
         <div className="w-full px-12 py-8 rounded-[12px] mt-[24px] bg-[#F2F3F7]">
           <PlanSection plan={chat.planList} />
         </div>

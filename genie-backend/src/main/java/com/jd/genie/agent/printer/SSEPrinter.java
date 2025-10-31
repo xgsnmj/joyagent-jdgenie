@@ -21,16 +21,24 @@ public class SSEPrinter implements Printer {
     private SseEmitter emitter;
     private AgentRequest request;
     private Integer agentType;
+    private com.jd.genie.agent.agent.AgentContext agentContext;  // 持有AgentContext引用
 
-    public SSEPrinter(SseEmitter emitter, AgentRequest request, Integer agentType) {
+    public SSEPrinter(SseEmitter emitter, AgentRequest request, Integer agentType, com.jd.genie.agent.agent.AgentContext agentContext) {
         this.emitter = emitter;
         this.request = request;
         this.agentType = agentType;
+        this.agentContext = agentContext;  // 保存引用
     }
 
     @Override
     public void send(String messageId, String messageType, Object message, String digitalEmployee, Boolean isFinal) {
         try {
+            // 检查任务是否已中断，如果已中断则抛出异常终止处理线程
+            if (agentContext != null && agentContext.isInterrupted()) {
+                log.info("{} 检测到任务中断标志，停止发送SSE消息", request.getRequestId());
+                throw new RuntimeException("任务已中断");
+            }
+
             if (Objects.isNull(messageId)) {
                 messageId = StringUtil.getUUID();
             }
@@ -92,26 +100,53 @@ public class SSEPrinter implements Printer {
                     response.getResultMap().put("agentType", agentType);
                     break;
                 case "agent_stream":
+                    // 累积流式回复内容到AgentContext
+                    if (message instanceof String && agentContext != null) {
+                        agentContext.getAssistantResponse().append((String) message);
+                        log.debug("{} accumulated stream: {} chars",
+                                  request.getRequestId(),
+                                  agentContext.getAssistantResponse().length());
+                    }
                     response.setResult((String) message);
                     break;
                 case "result":
+                    // 提取AI回复内容并保存到AgentContext
+                    String assistantReply = null;
                     if (message instanceof String) {
-                        response.setResult((String) message);
+                        assistantReply = (String) message;
+                        response.setResult(assistantReply);
                     } else if (message instanceof Map) {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> taskResult = (Map<String, Object>) message;
                         Object summary = taskResult.get("taskSummary");
+                        assistantReply = summary != null ? summary.toString() : null;
                         response.setResultMap(taskResult);
-                        response.setResult(summary != null ? summary.toString() : null);
+                        response.setResult(assistantReply);
                     } else {
                         Map<String, Object> taskResult = JSON.parseObject(JSON.toJSONString(message));
+                        assistantReply = taskResult.get("taskSummary") != null ?
+                                         taskResult.get("taskSummary").toString() : null;
                         response.setResultMap(taskResult);
-                        response.setResult(taskResult.get("taskSummary").toString());
+                        response.setResult(assistantReply);
                     }
+
+                    // 将AI回复累积到AgentContext中
+                    if (assistantReply != null && agentContext != null) {
+                        agentContext.getAssistantResponse().append(assistantReply);
+                        log.debug("{} accumulated assistant response: {} chars",
+                                  request.getRequestId(),
+                                  agentContext.getAssistantResponse().length());
+                    }
+
                     response.getResultMap().put("agentType", agentType);
                     break;
                 default:
                     break;
+            }
+
+            // 收集会话数据到dataCollector
+            if (agentContext != null && agentContext.getDataCollector() != null) {
+                agentContext.getDataCollector().collectMessage(response);
             }
 
             emitter.send(response);

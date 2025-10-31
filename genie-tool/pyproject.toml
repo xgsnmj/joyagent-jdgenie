@@ -5,9 +5,10 @@ description = "Genie Tools"
 readme = "README.md"
 requires-python = ">=3.11,<4.0"
 dependencies = [
-    "aiosqlite>=0.21.0",
+    "aiomysql>=0.2.0",
     "asyncio>=4.0.0",
     "beautifulsoup4>=4.13.4",
+    "cryptography>=41.0.0",
     "elasticsearch==7.17.12",
     "fastapi>=0.115.14",
     "greenlet>=3.2.3",
@@ -22,6 +23,7 @@ dependencies = [
     "pandas>=2.3.0",
     "pydantic>=2.11.7",
     "pyfiglet>=1.0.3",
+    "pymysql>=1.1.0",
     "python-multipart>=0.0.20",
     "qdrant-client==1.5",
     "scikit-learn>=1.7.1",

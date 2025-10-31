@@ -43,6 +43,26 @@ public class MessageVO implements Serializable {
     private String files;
 
     /**
+     * 思考过程（AI的思维链）
+     */
+    private String thought;
+
+    /**
+     * 任务详情（JSON数组，包含所有任务执行过程）
+     */
+    private String tasks;
+
+    /**
+     * 计划信息（JSON对象，包含计划标题和步骤）
+     */
+    private String plan;
+
+    /**
+     * 其他元数据（JSON对象，存储额外信息）
+     */
+    private String metadata;
+
+    /**
      * 创建时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

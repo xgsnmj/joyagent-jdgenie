@@ -158,6 +158,7 @@ public class MultiAgentServiceImpl implements IMultiAgentService {
     private AgentRequest buildAgentRequest(GptQueryReq req) {
         AgentRequest request = new AgentRequest();
         request.setRequestId(req.getTraceId());
+        request.setSessionId(req.getSessionId()); // 传递 sessionId 用于多轮对话文件管理
         request.setErp(req.getUser());
         request.setQuery(req.getQuery());
         //根据如果是深度研究，则使用规划解决模式，否则使用REACT模式

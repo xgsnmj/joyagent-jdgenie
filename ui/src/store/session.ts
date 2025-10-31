@@ -23,6 +23,7 @@ interface SessionState {
 
   /**
    * 设置当前会话ID
+   * @internal 内部方法，外部组件请使用URL参数跳转: navigate(`/?sessionId=${sessionId}`)
    */
   setCurrentSessionId: (sessionId: string | null) => void;
 
@@ -48,11 +49,15 @@ interface SessionState {
 
   /**
    * 切换会话
+   * @deprecated 已废弃，推荐使用URL参数跳转: navigate(`/?sessionId=${sessionId}`)
+   * 该方法将在未来版本中移除
    */
   switchSession: (sessionId: string) => Promise<void>;
 
   /**
    * 获取会话消息
+   * @deprecated 已废弃，由Home组件通过loadHistorySession统一处理
+   * 该方法将在未来版本中移除
    */
   fetchMessages: (sessionId: string) => Promise<void>;
 
@@ -60,6 +65,12 @@ interface SessionState {
    * 清空当前会话
    */
   clearCurrentSession: () => void;
+
+  /**
+   * 添加消息到当前会话
+   * 用于ChatView发送消息时同步状态
+   */
+  addMessage: (message: Message) => void;
 }
 
 /**
@@ -76,6 +87,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   /**
    * 设置当前会话ID
+   * @internal 内部方法，外部组件请使用URL参数跳转: navigate(`/?sessionId=${sessionId}`)
    */
   setCurrentSessionId: (sessionId) => {
     set({ currentSessionId: sessionId });
@@ -165,16 +177,22 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   /**
    * 切换会话
+   * @deprecated 已废弃，推荐使用URL参数跳转: navigate(`/?sessionId=${sessionId}`)
+   * 该方法将在未来版本中移除
    */
   switchSession: async (sessionId: string) => {
+    console.warn('switchSession已废弃，推荐使用URL参数跳转: navigate(`/?sessionId=${sessionId}`)');
     set({ currentSessionId: sessionId });
     await get().fetchMessages(sessionId);
   },
 
   /**
    * 获取会话消息
+   * @deprecated 已废弃，由Home组件通过loadHistorySession统一处理
+   * 该方法将在未来版本中移除
    */
   fetchMessages: async (sessionId: string) => {
+    console.warn('fetchMessages已废弃，由Home组件通过loadHistorySession统一处理');
     try {
       set({ loading: true });
       const messages = await getSessionMessages(sessionId);
@@ -197,5 +215,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       currentSessionId: null,
       messages: []
     });
+  },
+
+  /**
+   * 添加消息到当前会话
+   * 用于ChatView发送消息时同步状态
+   */
+  addMessage: (message) => {
+    set((state) => ({
+      messages: [...state.messages, message]
+    }));
   }
 }));

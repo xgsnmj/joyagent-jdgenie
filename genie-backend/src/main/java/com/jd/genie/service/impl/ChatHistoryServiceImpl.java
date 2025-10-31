@@ -205,6 +205,39 @@ public class ChatHistoryServiceImpl implements IChatHistoryService {
     }
 
     /**
+     * 保存完整的消息数据
+     * 包括思考过程、任务详情、计划信息等完整会话数据
+     *
+     * @param sessionId 会话ID
+     * @param role      角色（user/assistant）
+     * @param content   消息内容
+     * @param files     附件文件信息（JSON格式，可选）
+     * @param thought   思考过程（JSON格式，可选）
+     * @param tasks     任务详情（JSON格式，可选）
+     * @param plan      计划信息（JSON格式，可选）
+     * @param metadata  其他元数据（JSON格式，可选）
+     */
+    @Override
+    public void saveMessage(String sessionId, String role, String content, String files,
+                            String thought, String tasks, String plan, String metadata) {
+        com.jd.genie.entity.ChatMessage message = new com.jd.genie.entity.ChatMessage();
+        message.setSessionId(sessionId);
+        message.setRole(role);
+        message.setContent(content);
+        message.setFiles(files);
+        message.setThought(thought);
+        message.setTasks(tasks);
+        message.setPlan(plan);
+        message.setMetadata(metadata);
+        message.setCreateTime(LocalDateTime.now());
+
+        chatMessageMapper.insert(message);
+        log.info("保存完整消息: sessionId={}, role={}, contentLength={}, hasThought={}, hasTasks={}, hasPlan={}, hasMetadata={}",
+                sessionId, role, content != null ? content.length() : 0,
+                thought != null, tasks != null, plan != null, metadata != null);
+    }
+
+    /**
      * 创建新会话
      *
      * @param userId 用户ID
@@ -288,5 +321,191 @@ public class ChatHistoryServiceImpl implements IChatHistoryService {
         MessageVO vo = new MessageVO();
         BeanUtils.copyProperties(message, vo);
         return vo;
+    }
+
+    /**
+     * 异步生成会话标题
+     * 使用AI根据用户问题和助手回复生成简洁标题（不超过50字）
+     */
+    @Override
+    public void generateSessionTitleAsync(String sessionId, String userQuery, String assistantReply) {
+        // 使用线程池异步执行，不阻塞主流程
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                // 查询会话，检查是否需要生成标题
+                LambdaQueryWrapper<ChatSession> wrapper = new LambdaQueryWrapper<>();
+                wrapper.eq(ChatSession::getSessionId, sessionId);
+                ChatSession session = chatSessionMapper.selectOne(wrapper);
+
+                if (session == null) {
+                    log.warn("生成标题失败：会话不存在 sessionId={}", sessionId);
+                    return;
+                }
+
+                // 只有标题是默认值或用query前缀时才生成
+                if (session.getTitle() == null || session.getTitle().equals("新对话") ||
+                    (userQuery.length() > 20 && session.getTitle().startsWith(userQuery.substring(0, Math.min(20, userQuery.length()))))) {
+
+                    log.info("开始为会话生成标题: sessionId={}", sessionId);
+
+                    // 简化版：基于规则生成标题（提取关键词）
+                    // TODO: 后续可替换为LLM生成
+                    String generatedTitle = generateTitleByRule(userQuery, assistantReply);
+
+                    // 更新数据库
+                    LambdaUpdateWrapper<ChatSession> updateWrapper = new LambdaUpdateWrapper<>();
+                    updateWrapper.eq(ChatSession::getSessionId, sessionId)
+                        .set(ChatSession::getTitle, generatedTitle)
+                        .set(ChatSession::getUpdateTime, LocalDateTime.now());
+
+                    chatSessionMapper.update(null, updateWrapper);
+                    log.info("会话标题生成成功: sessionId={}, title={}", sessionId, generatedTitle);
+                } else {
+                    log.debug("会话已有自定义标题，跳过生成: sessionId={}, title={}", sessionId, session.getTitle());
+                }
+
+            } catch (Exception e) {
+                // 标题生成失败不影响主流程，只记录日志
+                log.error("生成会话标题失败: sessionId={}, error={}", sessionId, e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * 基于规则生成标题（简化版）
+     * 提取用户问题的前50个字符作为标题
+     * TODO: 后续可替换为LLM智能生成
+     */
+    private String generateTitleByRule(String userQuery, String assistantReply) {
+        if (userQuery == null || userQuery.isEmpty()) {
+            return "新对话";
+        }
+
+        // 清理标题（去除换行、多余空格等）
+        String title = userQuery.trim()
+            .replaceAll("\\n+", " ")          // 换行替换为空格
+            .replaceAll("\\s+", " ")          // 多个空格合并为一个
+            .replaceAll("^[\"']|[\"']$", ""); // 去除首尾引号
+
+        // 限制长度为50字符
+        if (title.length() > 50) {
+            title = title.substring(0, 50) + "...";
+        }
+
+        return title;
+    }
+
+    /**
+     * 更新消息的metadata字段
+     * 用于前端上报完整的multiAgent数据后更新到数据库
+     *
+     * @param messageId 消息ID
+     * @param metadataJson metadata的JSON字符串
+     */
+    @Override
+    public void updateMessageMetadata(Long messageId, String metadataJson) {
+        ChatMessage message = new ChatMessage();
+        message.setId(messageId);
+        message.setMetadata(metadataJson);
+
+        int result = chatMessageMapper.updateById(message);
+        log.info("更新消息metadata: messageId={}, size={}, result={}",
+                 messageId, metadataJson != null ? metadataJson.length() : 0, result);
+    }
+
+    /**
+     * 根据requestId查找assistant消息ID
+     * 用于将前端上报的multiAgent数据关联到对应的消息记录
+     *
+     * @param sessionId 会话ID
+     * @param requestId 请求ID
+     * @return 消息ID，如果未找到则返回null
+     */
+    @Override
+    public Long findAssistantMessageByRequestId(String sessionId, String requestId) {
+        // 查询session下最近的10条assistant消息（性能优化，避免全表扫描）
+        LambdaQueryWrapper<ChatMessage> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ChatMessage::getSessionId, sessionId)
+               .eq(ChatMessage::getRole, "assistant")
+               .orderByDesc(ChatMessage::getCreateTime)
+               .last("LIMIT 10");
+
+        List<ChatMessage> messages = chatMessageMapper.selectList(wrapper);
+
+        // 遍历查找匹配的requestId（从metadata中解析）
+        for (ChatMessage msg : messages) {
+            if (msg.getMetadata() != null && !msg.getMetadata().isEmpty()) {
+                try {
+                    com.alibaba.fastjson.JSONObject metadata =
+                        com.alibaba.fastjson.JSON.parseObject(msg.getMetadata());
+                    if (requestId.equals(metadata.getString("requestId"))) {
+                        log.debug("找到匹配的消息: messageId={}, requestId={}", msg.getId(), requestId);
+                        return msg.getId();
+                    }
+                } catch (Exception e) {
+                    // 忽略JSON解析错误，继续查找
+                    log.debug("解析metadata失败: messageId={}, error={}", msg.getId(), e.getMessage());
+                }
+            }
+        }
+
+        // Fallback策略：如果没有找到匹配的requestId，返回最新的assistant消息
+        // 这样可以确保在metadata为空或解析失败时，仍然能够更新数据
+        if (!messages.isEmpty()) {
+            Long fallbackId = messages.get(0).getId();
+            log.warn("未找到匹配requestId的消息，使用最新assistant消息: sessionId={}, requestId={}, fallbackMessageId={}",
+                     sessionId, requestId, fallbackId);
+            return fallbackId;
+        }
+
+        log.warn("未找到任何assistant消息: sessionId={}, requestId={}", sessionId, requestId);
+        return null;
+    }
+
+    /**
+     * 验证会话是否属于指定用户
+     * 用于权限校验，防止用户操作其他用户的会话
+     *
+     * @param sessionId 会话ID
+     * @param userId 用户ID
+     * @return true表示该会话属于该用户，false表示不属于
+     */
+    @Override
+    public boolean isSessionOwner(String sessionId, Long userId) {
+        LambdaQueryWrapper<ChatSession> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ChatSession::getSessionId, sessionId)
+               .eq(ChatSession::getUserId, userId)
+               .eq(ChatSession::getYn, 0);  // 只查询未删除的会话
+
+        Long count = chatSessionMapper.selectCount(wrapper);
+        boolean isOwner = count > 0;
+
+        log.debug("验证会话归属: sessionId={}, userId={}, isOwner={}", sessionId, userId, isOwner);
+        return isOwner;
+    }
+
+    /**
+     * 根据消息ID获取消息详情
+     * 用于读取消息的完整信息（包括metadata字段）
+     *
+     * @param messageId 消息ID
+     * @return 消息实体，如果未找到则返回null
+     */
+    @Override
+    public ChatMessage getMessageById(Long messageId) {
+        if (messageId == null) {
+            log.warn("getMessageById: messageId为空");
+            return null;
+        }
+
+        ChatMessage message = chatMessageMapper.selectById(messageId);
+        if (message == null) {
+            log.warn("getMessageById: 未找到消息 messageId={}", messageId);
+        } else {
+            log.debug("getMessageById: 成功获取消息 messageId={}, hasMetadata={}",
+                     messageId, message.getMetadata() != null);
+        }
+
+        return message;
     }
 }

@@ -67,9 +67,9 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
   /**
    * 查看会话详情（跳转到首页并加载该会话）
    */
-  const handleView = (sessionId: string | number) => {
-    // 跳转到首页，并通过URL参数传递sessionId
-    navigate(`/?sessionId=${sessionId}`);
+  const handleView = (record: Session) => {
+    // 跳转到首页，并通过URL参数传递sessionId（使用业务标识符而非数据库主键）
+    navigate(`/?sessionId=${record.sessionId}`);
   };
 
   /**
@@ -144,7 +144,7 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
           <Button
             type="link"
             icon={<EyeOutlined />}
-            onClick={() => handleView(record.id)}
+            onClick={() => handleView(record)}
             className="text-[#4040ff]"
           >
             查看

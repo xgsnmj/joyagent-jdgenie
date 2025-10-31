@@ -15,15 +15,27 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 
 
-SQLITE_DB_PATH = os.environ.get("SQLITE_DB_PATH", "autobots.db")
+# MySQL 数据库配置（与 genie-backend 共享数据库）
+MYSQL_HOST = os.environ.get("MYSQL_HOST", "192.168.4.227")
+MYSQL_PORT = os.environ.get("MYSQL_PORT", "3306")
+MYSQL_USER = os.environ.get("MYSQL_USER", "genie")
+MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "whj88364399")
+MYSQL_DATABASE = os.environ.get("MYSQL_DATABASE", "genie_db")
 
-engine = create_engine(f"sqlite:///{SQLITE_DB_PATH}", echo=True)
+# 构建MySQL连接字符串
+MYSQL_URL = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4"
+MYSQL_ASYNC_URL = f"mysql+aiomysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4"
 
+# 同步引擎（用于初始化建表）
+engine = create_engine(MYSQL_URL, echo=True, pool_pre_ping=True)
+
+# 异步引擎（用于业务操作）
 async_engine = create_async_engine(
-    f"sqlite+aiosqlite:///{SQLITE_DB_PATH}",
+    MYSQL_ASYNC_URL,
     poolclass=AsyncAdaptedQueuePool,
     pool_size=10,
     pool_recycle=3600,
+    pool_pre_ping=True,  # MySQL连接保活，避免连接超时
     echo=False,
 )
 
