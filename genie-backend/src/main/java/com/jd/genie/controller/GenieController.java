@@ -54,6 +54,10 @@ public class GenieController {
     private IGptProcessService gptProcessService;
     @Autowired
     private IChatHistoryService chatHistoryService;
+    @Autowired
+    private com.jd.genie.service.AgentProviderService agentProviderService;
+    @Autowired
+    private com.jd.genie.adapter.AgentAdapterFactory adapterFactory;
 
     /**
      * 开启SSE心跳
@@ -237,6 +241,102 @@ public class GenieController {
         // 更新agentContext中的query（因为handleOutputStyle修改了request.getQuery()）
         agentContext.setQuery(request.getQuery());
 
+        // ==================== 多智能体平台调度逻辑 ====================
+        // 1. 确定使用的智能体配置ID
+        Long agentProviderId = request.getAgentProviderId();
+        com.jd.genie.entity.AgentProvider agentProvider = null;
+
+        if (userId != null) {
+            if (agentProviderId != null) {
+                // 如果指定了智能体ID，使用指定的智能体
+                agentProvider = agentProviderService.getById(agentProviderId);
+                if (agentProvider == null) {
+                    throw new RuntimeException("智能体配置不存在: " + agentProviderId);
+                }
+                // 验证权限
+                if (!agentProvider.getUserId().equals(userId)) {
+                    throw new RuntimeException("无权使用该智能体配置");
+                }
+            } else {
+                // 如果没有指定，使用用户的默认智能体
+                agentProvider = agentProviderService.getUserDefaultProvider(userId);
+                if (agentProvider != null) {
+                    agentProviderId = agentProvider.getId();
+                }
+            }
+
+            // 如果是外部平台（非default），使用适配器处理
+            if (agentProvider != null && !"default".equals(agentProvider.getProviderType())) {
+                log.info("{} 使用外部智能体平台: {} ({})", request.getRequestId(),
+                        agentProvider.getProviderName(), agentProvider.getProviderType());
+
+                // 获取或创建会话（必须先创建会话，以便获取externalSessionId）
+                chatHistoryService.createOrGetSession(
+                        request.getSessionId(),
+                        userId,
+                        originalQuery.length() > 50 ? originalQuery.substring(0, 50) + "..." : originalQuery,
+                        request.getAgentType() != null ? String.valueOf(request.getAgentType()) : "default",
+                        request.getOutputStyle(),
+                        agentProviderId
+                );
+
+                // 保存用户消息
+                chatHistoryService.saveMessage(
+                        request.getSessionId(),
+                        "user",
+                        originalQuery,
+                        null
+                );
+
+                // 获取历史消息（用于多轮对话）
+                List<com.jd.genie.model.dto.MessageVO> historyMessages =
+                        chatHistoryService.getSessionMessages(request.getSessionId(), userId);
+
+                // 转换为ChatMessage格式
+                List<com.jd.genie.entity.ChatMessage> history = historyMessages.stream()
+                        .map(msg -> {
+                            com.jd.genie.entity.ChatMessage chatMsg = new com.jd.genie.entity.ChatMessage();
+                            chatMsg.setRole(msg.getRole());
+                            chatMsg.setContent(msg.getContent());
+                            chatMsg.setCreateTime(msg.getCreateTime());
+                            return chatMsg;
+                        })
+                        .collect(java.util.stream.Collectors.toList());
+
+                // 查询会话以获取externalSessionId
+                com.jd.genie.entity.ChatSession session =
+                        chatHistoryService.getSessionBySessionId(request.getSessionId());
+
+                // 使用适配器工厂获取对应的适配器
+                com.jd.genie.adapter.AgentAdapter adapter =
+                        adapterFactory.getAdapter(agentProvider.getProviderType());
+
+                // 发送请求并返回SSE流
+                com.jd.genie.adapter.AgentAdapter.ChatResponse response = adapter.sendChatRequest(
+                        request.getSessionId(),
+                        originalQuery,
+                        history,
+                        agentProvider.getApiEndpoint(),
+                        agentProvider.getApiKey(),
+                        agentProvider.getBotId(),  // 传递Bot ID（Coze平台必填）
+                        session != null ? session.getExternalSessionId() : null
+                );
+
+                // 保存外部会话ID（首次对话时）
+                if (session != null && session.getExternalSessionId() == null &&
+                        response.getExternalSessionId() != null) {
+                    chatHistoryService.updateExternalSessionId(
+                            request.getSessionId(), response.getExternalSessionId());
+                    log.info("保存外部会话ID - sessionId: {}, externalSessionId: {}",
+                            request.getSessionId(), response.getExternalSessionId());
+                }
+
+                // 返回SSE流（适配器已经处理了消息保存）
+                return response.getEmitter();
+            }
+        }
+
+        // ==================== Default智能体（原有逻辑）====================
         // 创建或获取会话并保存用户消息（如果用户已登录）
         if (userId != null && request.getSessionId() != null) {
             try {
@@ -246,7 +346,8 @@ public class GenieController {
                         userId,
                         originalQuery.length() > 50 ? originalQuery.substring(0, 50) + "..." : originalQuery,
                         request.getAgentType() != null ? String.valueOf(request.getAgentType()) : "default",
-                        request.getOutputStyle()
+                        request.getOutputStyle(),
+                        agentProviderId  // 传递agentProviderId（可能是default智能体的ID或null）
                 );
 
                 // 加载历史对话消息（用于多轮对话记忆）
@@ -540,7 +641,8 @@ public class GenieController {
                         userId,
                         sessionTitle,
                         "default",  // agentType
-                        params.getOutputStyle()
+                        params.getOutputStyle(),
+                        null  // agentProviderId，这里使用null，让系统自动使用用户默认智能体
                 );
 
                 log.info("会话已创建/获取: sessionId={}, userId={}", params.getSessionId(), userId);

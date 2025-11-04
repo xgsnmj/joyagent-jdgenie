@@ -3,6 +3,8 @@ import { Input, Button, Tooltip } from "antd";
 import classNames from "classnames";
 import { TextAreaRef } from "antd/es/input/TextArea";
 import { getOS } from "@/utils";
+import { AgentSelector } from "@/components/AgentSelector";
+import type { AgentProvider } from "@/types/agentProvider";
 
 const { TextArea } = Input;
 
@@ -14,10 +16,26 @@ type Props = {
   product?: CHAT.Product;
   send: (p: CHAT.TInputInfo) => void;
   dbsShow?: (show: boolean) => void;
+  // 智能体相关props
+  agentProviderId?: number;
+  agentProviders?: AgentProvider[];
+  onAgentChange?: (providerId: number) => void;
+  isHistorySession?: boolean;
 };
 
 const GeneralInput: GenieType.FC<Props> = (props) => {
-  const { placeholder, showBtn, disabled, product, send, dbsShow } = props;
+  const {
+    placeholder,
+    showBtn,
+    disabled,
+    product,
+    send,
+    dbsShow,
+    agentProviderId,
+    agentProviders = [],
+    onAgentChange,
+    isHistorySession = false
+  } = props;
   const [question, setQuestion] = useState<string>("");
   const [deepThink, setDeepThink] = useState<boolean>(false);
   const textareaRef = useRef<TextAreaRef>(null);
@@ -118,6 +136,7 @@ const GeneralInput: GenieType.FC<Props> = (props) => {
           ) : null}
         </div>
         <div className="h-30 flex justify-between items-center mt-[6px]">
+          {/* 左侧：深度研究按钮（仅显示在showBtn=true时，即系统默认智能体）*/}
           {showBtn ? (
             <div>
               <Button
@@ -143,8 +162,23 @@ const GeneralInput: GenieType.FC<Props> = (props) => {
           ) : (
             <div></div>
           )}
-          <div className="flex items-center">
-            <span className="text-[12px] text-gray-300 mr-8 flex items-center">{enterTip}</span>
+
+          {/* 右侧：智能体选择器 + 提示文本 + 发送按钮 */}
+          <div className="flex items-center gap-2">
+            {/* 智能体选择器 */}
+            {agentProviders.length > 0 && (
+              <AgentSelector
+                value={agentProviderId}
+                providers={agentProviders}
+                onChange={onAgentChange || (() => {})}
+                disabled={isHistorySession}
+                size="small"
+                style={{ width: 180 }}
+              />
+            )}
+
+            <span className="text-[12px] text-gray-300 flex items-center">{enterTip}</span>
+
             <Tooltip title="发送">
               <i
                 className={`font_family icon-fasongtianchong ${!question || disabled ? "cursor-not-allowed text-[#ccc] pointer-events-none" : "cursor-pointer"}`}

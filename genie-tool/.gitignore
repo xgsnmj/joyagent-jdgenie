@@ -214,3 +214,5 @@ __marimo__/
 file_db_dir/
 autobots.db
 
+# Session temporary files - AI工具服务运行时生成的临时会话文件夹
+session-*/

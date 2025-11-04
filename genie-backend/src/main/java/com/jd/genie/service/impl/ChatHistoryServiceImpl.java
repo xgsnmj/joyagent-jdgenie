@@ -153,7 +153,7 @@ public class ChatHistoryServiceImpl implements IChatHistoryService {
      * @return 会话信息
      */
     @Override
-    public SessionVO createOrGetSession(String sessionId, Long userId, String title, String agentType, String outputStyle) {
+    public SessionVO createOrGetSession(String sessionId, Long userId, String title, String agentType, String outputStyle, Long agentProviderId) {
         // 先查询会话是否存在
         LambdaQueryWrapper<ChatSession> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ChatSession::getSessionId, sessionId);
@@ -168,11 +168,16 @@ public class ChatHistoryServiceImpl implements IChatHistoryService {
             session.setTitle(title != null && !title.isEmpty() ? title : "新对话");
             session.setAgentType(agentType);
             session.setOutputStyle(outputStyle);
+
+            // 设置智能体配置ID（如果未指定，则使用用户的默认智能体）
+            session.setAgentProviderId(agentProviderId);
+
             session.setCreateTime(LocalDateTime.now());
             session.setUpdateTime(LocalDateTime.now());
 
             chatSessionMapper.insert(session);
-            log.info("创建新会话: sessionId={}, userId={}, title={}", sessionId, userId, title);
+            log.info("创建新会话: sessionId={}, userId={}, title={}, agentProviderId={}",
+                    sessionId, userId, title, agentProviderId);
         } else {
             // 会话存在，更新最后活跃时间
             session.setUpdateTime(LocalDateTime.now());
@@ -507,5 +512,62 @@ public class ChatHistoryServiceImpl implements IChatHistoryService {
         }
 
         return message;
+    }
+
+    /**
+     * 根据sessionId获取会话实体
+     * 用于获取完整的会话信息（包括externalSessionId）
+     *
+     * @param sessionId 会话ID
+     * @return 会话实体，如果未找到则返回null
+     */
+    @Override
+    public ChatSession getSessionBySessionId(String sessionId) {
+        if (sessionId == null || sessionId.isEmpty()) {
+            log.warn("getSessionBySessionId: sessionId为空");
+            return null;
+        }
+
+        LambdaQueryWrapper<ChatSession> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ChatSession::getSessionId, sessionId);
+
+        ChatSession session = chatSessionMapper.selectOne(wrapper);
+        if (session == null) {
+            log.warn("getSessionBySessionId: 未找到会话 sessionId={}", sessionId);
+        } else {
+            log.debug("getSessionBySessionId: 成功获取会话 sessionId={}, externalSessionId={}",
+                     sessionId, session.getExternalSessionId());
+        }
+
+        return session;
+    }
+
+    /**
+     * 更新会话的外部会话ID
+     * 用于保存外部智能体平台返回的会话ID
+     *
+     * @param sessionId 会话ID
+     * @param externalSessionId 外部会话ID
+     */
+    @Override
+    public void updateExternalSessionId(String sessionId, String externalSessionId) {
+        if (sessionId == null || sessionId.isEmpty()) {
+            log.warn("updateExternalSessionId: sessionId为空");
+            return;
+        }
+
+        LambdaUpdateWrapper<ChatSession> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(ChatSession::getSessionId, sessionId)
+                .set(ChatSession::getExternalSessionId, externalSessionId)
+                .set(ChatSession::getUpdateTime, LocalDateTime.now());
+
+        int result = chatSessionMapper.update(null, updateWrapper);
+        if (result > 0) {
+            log.info("更新外部会话ID成功: sessionId={}, externalSessionId={}",
+                    sessionId, externalSessionId);
+        } else {
+            log.warn("更新外部会话ID失败: sessionId={}, externalSessionId={}",
+                    sessionId, externalSessionId);
+        }
     }
 }

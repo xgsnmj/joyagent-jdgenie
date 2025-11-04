@@ -7,6 +7,7 @@ import ChatView from "@/components/ChatView";
 import DataListDrawer from "@/components/DataListDrawer";
 import ColsAndDataDrawer from "@/components/DataListDrawer/ColsAndDataDrawer";
 import { getSessionMessages } from "@/api/chat";
+import { useAgentProviderStore } from "@/store/agentProvider";
 
 import { productList, defaultProduct, chatQustions } from "@/utils/constants";
 import classNames from "classnames";
@@ -15,6 +16,12 @@ type HomeProps = Record<string, never>;
 
 const Home: GenieType.FC<HomeProps> = memo(() => {
   const [searchParams] = useSearchParams();
+  const {
+    providers,
+    currentProvider,
+    setCurrentProvider,
+    fetchProviders
+  } = useAgentProviderStore();  // 获取完整的智能体状态
   const [inputInfo, setInputInfo] = useState<CHAT.TInputInfo>({
     message: "",
     deepThink: false,
@@ -33,6 +40,9 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
   const [historyMessages, setHistoryMessages] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  // 智能体选择状态
+  const [selectedProviderId, setSelectedProviderId] = useState<number>();
+
   const changeInputInfo = useCallback((info: CHAT.TInputInfo) => {
     setInputInfo(info);
   }, []);
@@ -49,6 +59,31 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
     setCurModel(modelInfo);
     setDataShow(true);
   }, []);
+
+  /**
+   * 处理智能体切换
+   * 首页只允许切换，不需要检查历史会话
+   */
+  const handleProviderChange = useCallback((providerId: number) => {
+    setSelectedProviderId(providerId);
+    const provider = providers.find((p) => p.id === providerId);
+    if (provider) {
+      setCurrentProvider(provider);
+      message.success(`已切换到智能体: ${provider.providerName}`);
+    }
+  }, [providers, setCurrentProvider]);
+
+  // 初始化：获取智能体配置
+  useEffect(() => {
+    fetchProviders();
+  }, [fetchProviders]);
+
+  // 设置默认选中的智能体
+  useEffect(() => {
+    if (currentProvider) {
+      setSelectedProviderId(currentProvider.id);
+    }
+  }, [currentProvider]);
 
   /**
    * 加载历史会话
@@ -135,20 +170,36 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
       <div className="flex flex-col items-center">
         <Slogn />
         <div className="w-640 rounded-xl shadow-[0_18px_39px_0_rgba(198,202,240,0.1)]">
-          <GeneralInput placeholder={product.placeholder} showBtn={true} size="big" disabled={false} product={product} send={changeInputInfo} dbsShow={setDbsShow} />
+          <GeneralInput
+            placeholder={product.placeholder}
+            showBtn={currentProvider?.providerType === 'default'}  // 只有默认智能体显示深度研究
+            size="big"
+            disabled={false}
+            product={currentProvider?.providerType === 'default' ? product : undefined}  // 非默认不传product
+            send={changeInputInfo}
+            dbsShow={setDbsShow}
+            // 智能体相关props
+            agentProviderId={selectedProviderId}
+            agentProviders={providers}
+            onAgentChange={handleProviderChange}
+            isHistorySession={false}  // 首页不是历史会话
+          />
         </div>
-        <div className="w-640 flex justify-between mt-[16px]">
-          {productList.map((item, i) => (
-            <div
-              key={i}
-              className={`flex-1 h-[36px] cursor-pointer flex items-center justify-center border rounded-[8px] ${item.type === product.type ? "border-[#4040ff] bg-[rgba(64,64,255,0.02)] text-[#4040ff]" : "border-[#E9E9F0] text-[#666]"} ${i < productList.length - 1 ? "mr-[12px]" : ""}`}
-              onClick={() => setProduct(item)}
-            >
-              <i className={`font_family ${item.img} ${item.color}`}></i>
-              <div className="ml-[6px]">{item.name}</div>
-            </div>
-          ))}
-        </div>
+        {/* 输出模式选择 - 仅系统默认智能体显示 */}
+        {(!currentProvider || currentProvider.providerType === 'default') && (
+          <div className="w-640 flex justify-between mt-[16px]">
+            {productList.map((item, i) => (
+              <div
+                key={i}
+                className={`flex-1 h-[36px] cursor-pointer flex items-center justify-center border rounded-[8px] ${item.type === product.type ? "border-[#4040ff] bg-[rgba(64,64,255,0.02)] text-[#4040ff]" : "border-[#E9E9F0] text-[#666]"} ${i < productList.length - 1 ? "mr-[12px]" : ""}`}
+                onClick={() => setProduct(item)}
+              >
+                <i className={`font_family ${item.img} ${item.color}`}></i>
+                <div className="ml-[6px]">{item.name}</div>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="mt-80 mb-120 relative">
           {/* 漂浮的建议问题 */}
           <div

@@ -531,4 +531,314 @@ INSERT INTO `sys_user` (`username`, `password`, `nickname`, `status`, `is_admin`
 VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', '系统管理员', 0, 1);
 ```
 
-**注意**: 上述SQL中的密码已经过BCrypt加密，明文密码为 `admin123`。生产环境请务必修改默认密码。
+**注意**: 上述SQL中的密码已经过BCrypt加密,明文密码为 `admin123`。生产环境请务必修改默认密码。
+
+---
+
+## V2.0 多智能体平台支持
+
+### 8. agent_provider（智能体服务商配置表）
+
+存储用户配置的智能体服务商信息，支持对接外部智能体平台。
+
+**表名**: `agent_provider`
+
+| 字段名 | 类型 | 长度 | 允许NULL | 默认值 | 主键 | 自增 | 说明 |
+|-------|------|------|----------|--------|------|------|------|
+| id | BIGINT | - | NO | - | YES | YES | 主键ID |
+| user_id | BIGINT | - | NO | - | NO | NO | 所属用户ID |
+| provider_type | VARCHAR | 50 | NO | - | NO | NO | 平台类型：default/coze/ronghui |
+| provider_name | VARCHAR | 10 | NO | - | NO | NO | 应用名称（最多10个字）|
+| api_endpoint | VARCHAR | 500 | YES | NULL | NO | NO | API请求地址（default类型为空）|
+| api_key | VARCHAR | 500 | YES | NULL | NO | NO | API密钥（明文存储）|
+| bot_id | VARCHAR | 100 | YES | NULL | NO | NO | Coze平台的Bot ID（仅coze类型必填）|
+| is_default | TINYINT | - | YES | 0 | NO | NO | 是否为该用户的默认智能体 |
+| status | TINYINT | - | YES | 1 | NO | NO | 状态：0-禁用 1-启用 |
+| extra_config | JSON | - | YES | NULL | NO | NO | 额外配置（平台特有参数）|
+| create_time | DATETIME | - | YES | CURRENT_TIMESTAMP | NO | NO | 创建时间 |
+| update_time | DATETIME | - | YES | CURRENT_TIMESTAMP | NO | NO | 更新时间 |
+
+**索引**:
+- PRIMARY KEY (`id`)
+- KEY `idx_user_id` (`user_id`) - 用户ID索引
+- KEY `idx_provider_type` (`provider_type`) - 平台类型索引
+- KEY `idx_bot_id` (`bot_id`) - Bot ID索引
+- UNIQUE KEY `uk_user_provider_name` (`user_id`, `provider_name`) - 唯一索引
+
+**建表SQL**:
+```sql
+CREATE TABLE `agent_provider` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `user_id` BIGINT NOT NULL COMMENT '所属用户ID',
+  `provider_type` VARCHAR(50) NOT NULL COMMENT '平台类型: default/coze/ronghui',
+  `provider_name` VARCHAR(10) NOT NULL COMMENT '应用名称（最多10个字）',
+  `api_endpoint` VARCHAR(500) COMMENT 'API请求地址（default类型为空）',
+  `api_key` VARCHAR(500) COMMENT 'API密钥（明文存储，default类型为空）',
+  `bot_id` VARCHAR(100) COMMENT 'Coze平台的Bot ID（仅coze类型必填）',
+  `is_default` TINYINT(1) DEFAULT 0 COMMENT '是否为该用户的默认智能体（0-否 1-是）',
+  `status` TINYINT(1) DEFAULT 1 COMMENT '状态（0-禁用 1-启用）',
+  `extra_config` JSON COMMENT '额外配置（JSON格式，存储平台特有参数）',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_provider_type` (`provider_type`),
+  KEY `idx_bot_id` (`bot_id`),
+  UNIQUE KEY `uk_user_provider_name` (`user_id`, `provider_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='智能体服务商配置表';
+```
+
+**业务规则**:
+1. 每个用户只能有一个默认智能体（通过触发器保证）
+2. 同一用户下智能体名称必须唯一
+3. default类型的智能体在用户注册时自动创建
+4. default类型的智能体不允许编辑和删除
+5. 用户只能查看和管理自己创建的智能体配置
+
+**支持的平台类型**:
+- `default`: 本地MultiAgent体系（系统内置）
+- `coze`: Coze智能体平台（需要配置bot_id）
+- `ronghui`: 融汇（阿里点金）智能体平台
+
+---
+
+### 9. sse_message_cache（SSE消息缓存表）
+
+临时存储SSE流消息，用于在流结束后统一持久化到chat_message表。
+
+**表名**: `sse_message_cache`
+
+| 字段名 | 类型 | 长度 | 允许NULL | 默认值 | 主键 | 自增 | 说明 |
+|-------|------|------|----------|--------|------|------|------|
+| id | BIGINT | - | NO | - | YES | YES | 主键ID |
+| session_id | BIGINT | - | NO | - | NO | NO | 会话ID |
+| message_sequence | INT | - | NO | - | NO | NO | 消息序号（从0开始递增）|
+| event_type | VARCHAR | 50 | YES | NULL | NO | NO | SSE事件类型（message/error/done）|
+| event_data | MEDIUMTEXT | - | YES | NULL | NO | NO | 事件数据内容 |
+| raw_data | MEDIUMTEXT | - | YES | NULL | NO | NO | 原始数据（完整SSE消息）|
+| is_persisted | TINYINT | - | YES | 0 | NO | NO | 是否已持久化 |
+| create_time | DATETIME | - | YES | CURRENT_TIMESTAMP | NO | NO | 创建时间 |
+
+**索引**:
+- PRIMARY KEY (`id`)
+- KEY `idx_session` (`session_id`, `message_sequence`) - 联合索引
+- KEY `idx_persisted` (`is_persisted`, `create_time`) - 联合索引
+
+**建表SQL**:
+```sql
+CREATE TABLE `sse_message_cache` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `session_id` BIGINT NOT NULL COMMENT '会话ID',
+  `message_sequence` INT NOT NULL COMMENT '消息序号（从0开始递增）',
+  `event_type` VARCHAR(50) COMMENT 'SSE事件类型（如message、error、done）',
+  `event_data` MEDIUMTEXT COMMENT '事件数据内容',
+  `raw_data` MEDIUMTEXT COMMENT '原始数据（完整SSE消息）',
+  `is_persisted` TINYINT(1) DEFAULT 0 COMMENT '是否已持久化到chat_message表（0-否 1-是）',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_session` (`session_id`, `message_sequence`),
+  KEY `idx_persisted` (`is_persisted`, `create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SSE消息缓存表（临时存储SSE流，待流结束后统一持久化）';
+```
+
+**生命周期**:
+1. SSE流开始时：逐条写入缓存表
+2. SSE流结束时：合并消息并写入chat_message表
+3. 持久化后：标记is_persisted=1
+4. 定期清理：调用存储过程清理已持久化的缓存
+
+---
+
+### chat_session 表新增字段（V2.0）
+
+**新增字段**:
+
+| 字段名 | 类型 | 长度 | 允许NULL | 默认值 | 说明 |
+|-------|------|------|----------|--------|------|
+| agent_provider_id | BIGINT | - | YES | NULL | 关联的智能体服务商ID |
+| external_session_id | VARCHAR | 200 | YES | NULL | 外部平台返回的会话ID（用于多轮对话）|
+
+**新增索引**:
+- KEY `idx_agent_provider` (`agent_provider_id`)
+- KEY `idx_external_session` (`external_session_id`)
+
+**业务说明**:
+- `agent_provider_id`: 标识当前会话使用的智能体配置
+- `external_session_id`: 存储外部平台（Coze、融汇）返回的会话ID，用于支持多轮对话
+- 会话创建时如果未指定agent_provider_id，则使用用户的默认智能体
+- 会话中不允许切换智能体，如需更换需创建新会话
+
+---
+
+### chat_message 表新增字段（V2.0）
+
+**新增字段**:
+
+| 字段名 | 类型 | 长度 | 允许NULL | 默认值 | 说明 |
+|-------|------|------|----------|--------|------|
+| message_format | VARCHAR | 50 | YES | 'default' | 消息格式类型：default/coze/ronghui |
+| raw_content | TEXT | - | YES | NULL | 原始响应内容（JSON格式，用于调试）|
+
+**业务说明**:
+- `message_format`: 标识消息来自哪个平台，便于前端渲染和调试
+- `raw_content`: 存储平台返回的原始JSON响应，便于问题排查
+- 不同平台的消息通过适配器统一格式化为标准的content字段
+
+---
+
+### 数据库触发器（V2.0）
+
+#### before_agent_provider_set_default
+
+**触发时机**: 更新agent_provider表之前
+**触发条件**: is_default从0变为1
+**执行逻辑**: 自动将同一用户的其他智能体的is_default设为0
+**作用**: 确保每个用户只有一个默认智能体
+
+**触发器SQL**:
+```sql
+DELIMITER $$
+
+CREATE TRIGGER before_agent_provider_set_default
+BEFORE UPDATE ON agent_provider
+FOR EACH ROW
+BEGIN
+    IF NEW.is_default = 1 AND OLD.is_default = 0 THEN
+        UPDATE agent_provider
+        SET is_default = 0
+        WHERE user_id = NEW.user_id
+        AND id != NEW.id
+        AND is_default = 1;
+    END IF;
+END$$
+
+DELIMITER ;
+```
+
+---
+
+### 存储过程（V2.0）
+
+#### clean_persisted_sse_cache()
+
+**功能**: 清理已持久化的SSE缓存消息
+**执行逻辑**: 删除is_persisted=1的所有记录
+**返回值**: 删除的记录数量
+**调用时机**: 定时任务或手动调用
+
+**存储过程SQL**:
+```sql
+DELIMITER $$
+
+CREATE PROCEDURE clean_persisted_sse_cache()
+BEGIN
+    DELETE FROM sse_message_cache
+    WHERE is_persisted = 1;
+    SELECT ROW_COUNT() AS deleted_count;
+END$$
+
+DELIMITER ;
+```
+
+**调用示例**:
+```sql
+CALL clean_persisted_sse_cache();
+```
+
+---
+
+## 表关系说明（V2.0更新）
+
+新增关系：
+
+5. **sys_user ↔ agent_provider**: 一对多关系
+   - 一个用户可以配置多个智能体服务商
+   - 通过 `agent_provider.user_id` 关联 `sys_user.id`
+   - 每个用户有且仅有一个默认智能体
+
+6. **agent_provider ↔ chat_session**: 一对多关系
+   - 一个智能体配置可以被多个会话使用
+   - 通过 `chat_session.agent_provider_id` 关联 `agent_provider.id`
+   - 会话创建后不允许切换智能体
+
+7. **chat_session ↔ sse_message_cache**: 一对多关系
+   - 一个会话可以有多条SSE缓存消息
+   - 通过 `sse_message_cache.session_id` 关联 `chat_session.id`
+   - 缓存消息在持久化后会被清理
+
+---
+
+## 数据流程图（V2.0）
+
+### 用户创建智能体配置
+```
+用户注册
+  → 自动创建default智能体配置（trigger）
+  → 设为默认（is_default=1）
+
+用户添加外部智能体
+  → 配置Coze/融汇等平台信息
+  → 可选择设为默认（触发器自动取消旧默认）
+```
+
+### 会话与智能体关联
+```
+创建新会话
+  → 指定或使用默认agent_provider_id
+  → 发送首条消息到外部平台
+  → 外部平台返回external_session_id
+  → 保存到chat_session表
+
+继续对话（多轮）
+  → 读取chat_session.external_session_id
+  → 携带该ID发送到外部平台
+  → 实现上下文连续性
+```
+
+### SSE消息处理流程
+```
+用户发送消息
+  → 后端转发到智能体平台
+  → 接收SSE流
+    → 逐条写入sse_message_cache表
+    → 同时转发给前端
+  → SSE流结束
+    → 合并缓存消息
+    → 持久化到chat_message表
+    → 标记is_persisted=1
+    → 清理缓存
+```
+
+---
+
+## 变更记录（V2.0）
+
+### 2025-01-03（多智能体平台接入）
+- **新增表**：
+  - `agent_provider`: 智能体服务商配置表
+  - `sse_message_cache`: SSE消息缓存表
+- **修改表**：
+  - `chat_session`: 新增 `agent_provider_id` 和 `external_session_id` 字段
+  - `chat_message`: 新增 `message_format` 和 `raw_content` 字段
+- **新增触发器**：
+  - `before_agent_provider_set_default`: 确保每个用户只有一个默认智能体
+- **新增存储过程**：
+  - `clean_persisted_sse_cache()`: 清理已持久化的SSE缓存
+- **功能特性**：
+  - 支持对接Coze、融汇等外部智能体平台
+  - 支持多轮对话（通过external_session_id）
+  - 支持SSE流式响应缓存和持久化
+  - 支持用户独立配置和管理智能体
+  - 支持设置默认智能体
+  - 历史会话禁止切换智能体
+
+### 2025-01-04（Coze平台Bot ID支持）
+- **修改表**：
+  - `agent_provider`: 新增 `bot_id` 字段（VARCHAR(100)），用于存储Coze平台的Bot ID
+  - 新增索引 `idx_bot_id` 用于快速查询
+- **业务逻辑**：
+  - Coze平台类型的智能体配置必须填写bot_id字段
+  - 其他平台类型（default、ronghui）bot_id可为空
+  - 前端根据平台类型条件显示bot_id输入字段
+  - 后端在创建和更新时验证Coze平台的bot_id必填
+- **迁移脚本**：`database/migration_v2.1_add_bot_id.sql`

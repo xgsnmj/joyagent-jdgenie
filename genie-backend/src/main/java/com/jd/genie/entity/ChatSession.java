@@ -40,6 +40,20 @@ public class ChatSession implements Serializable {
     private Long userId;
 
     /**
+     * 关联的智能体服务商ID
+     * 关联agent_provider表，标识该会话使用的智能体配置
+     * 用于支持多智能体平台对接
+     */
+    private Long agentProviderId;
+
+    /**
+     * 外部智能体平台返回的会话ID
+     * 用于多轮对话时传递给外部平台（如Coze、融汇）
+     * 实现上下文连续性
+     */
+    private String externalSessionId;
+
+    /**
      * 会话标题
      * 用于在会话列表中显示，方便用户识别和管理
      * 可以是用户自定义标题或根据首条消息自动生成

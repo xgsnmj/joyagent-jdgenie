@@ -1,0 +1,214 @@
+/**
+ * 智能体选择器自定义样式
+ * 提供美化的下拉框和选项样式
+ *
+ * @author JDGenie Team
+ * @since 2025-01-04
+ */
+
+/* ========== 下拉框主体样式 ========== */
+.custom-agent-selector .ant-select-selector {
+  border-radius: 8px !important;
+  border: 1px solid #E9E9F0 !important;
+  box-shadow: none !important;
+  transition: all 0.3s ease;
+  padding: 4px 8px !important;
+}
+
+/* hover 状态 */
+.custom-agent-selector:hover .ant-select-selector {
+  border-color: #4040ff !important;
+  box-shadow: 0 0 0 2px rgba(64, 64, 255, 0.1) !important;
+}
+
+/* 聚焦状态 */
+.custom-agent-selector.ant-select-focused .ant-select-selector {
+  border-color: #4040ff !important;
+  box-shadow: 0 0 0 2px rgba(64, 64, 255, 0.2) !important;
+}
+
+/* 禁用状态 */
+.custom-agent-selector.ant-select-disabled .ant-select-selector {
+  background-color: #f5f5f5 !important;
+  cursor: not-allowed !important;
+  border-color: #d9d9d9 !important;
+}
+
+.custom-agent-selector.ant-select-disabled .ant-select-arrow {
+  color: #bfbfbf !important;
+}
+
+/* ========== 下拉面板样式 ========== */
+.custom-agent-dropdown {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+  overflow: hidden;
+  padding: 4px 0 !important;
+}
+
+.custom-agent-dropdown .rc-virtual-list-holder {
+  max-height: 300px !important;
+}
+
+/* ========== 选项样式 ========== */
+.custom-agent-dropdown .ant-select-item {
+  padding: 10px 12px !important;
+  border-radius: 6px;
+  margin: 2px 8px;
+  transition: all 0.2s ease;
+  min-height: 40px;
+}
+
+/* 选中状态 */
+.custom-agent-dropdown .ant-select-item-option-selected {
+  background-color: rgba(64, 64, 255, 0.08) !important;
+  font-weight: 500;
+}
+
+.custom-agent-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  color: #4040ff !important;
+}
+
+/* hover 状态 */
+.custom-agent-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background-color: rgba(64, 64, 255, 0.05) !important;
+}
+
+/* 禁用状态 */
+.custom-agent-dropdown .ant-select-item-option-disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+}
+
+/* ========== 搜索框样式 ========== */
+.custom-agent-dropdown .ant-select-item-option-grouped {
+  padding-left: 24px !important;
+}
+
+/* ========== 选项内容样式 ========== */
+.agent-option-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.agent-option-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  transition: transform 0.2s ease;
+}
+
+.custom-agent-dropdown .ant-select-item-option-active .agent-option-icon {
+  transform: scale(1.1);
+}
+
+.agent-option-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #27272A;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-option-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+/* 平台类型徽章颜色 */
+.agent-badge-default {
+  background-color: rgba(64, 64, 255, 0.1);
+  color: #4040ff;
+}
+
+.agent-badge-coze {
+  background-color: rgba(41, 204, 41, 0.1);
+  color: #29CC29;
+}
+
+.agent-badge-ronghui {
+  background-color: rgba(255, 134, 13, 0.1);
+  color: #FF860D;
+}
+
+/* 默认标识 */
+.agent-badge-is-default {
+  background-color: #e6f7ff;
+  color: #1890ff;
+  border: 1px solid #91d5ff;
+}
+
+/* ========== 小尺寸适配 ========== */
+.custom-agent-selector.ant-select-sm .ant-select-selector {
+  padding: 2px 8px !important;
+}
+
+.custom-agent-selector.ant-select-sm .ant-select-selection-item {
+  font-size: 13px;
+}
+
+/* ========== 空状态 ========== */
+.custom-agent-dropdown .ant-select-item-empty {
+  color: #999;
+  text-align: center;
+  padding: 20px !important;
+}
+
+/* ========== 响应式适配 ========== */
+@media (max-width: 768px) {
+  .custom-agent-dropdown {
+    max-width: 90vw !important;
+  }
+
+  .custom-agent-dropdown .ant-select-item {
+    padding: 8px 10px !important;
+    margin: 2px 6px;
+  }
+
+  .agent-option-name {
+    font-size: 13px;
+  }
+
+  .agent-option-badge {
+    font-size: 11px;
+    padding: 1px 6px;
+  }
+}
+
+/* ========== 动画效果 ========== */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-agent-dropdown {
+  animation: slideDown 0.2s ease-out;
+}
+
+/* ========== 滚动条美化 ========== */
+.custom-agent-dropdown .rc-virtual-list-scrollbar {
+  width: 6px !important;
+}
+
+.custom-agent-dropdown .rc-virtual-list-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-radius: 3px !important;
+}
+
+.custom-agent-dropdown .rc-virtual-list-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3) !important;
+}
