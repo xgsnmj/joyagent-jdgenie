@@ -84,6 +84,7 @@ const GeneralInput: GenieType.FC<Props> = (props) => {
       message: question,
       outputStyle: product?.type,
       deepThink,
+      agentProviderId, // 传递智能体ID
     });
 
     setTimeout(() => {
@@ -96,6 +97,7 @@ const GeneralInput: GenieType.FC<Props> = (props) => {
       message: question,
       outputStyle: product?.type,
       deepThink,
+      agentProviderId, // 传递智能体ID
     });
     setQuestion("");
   };

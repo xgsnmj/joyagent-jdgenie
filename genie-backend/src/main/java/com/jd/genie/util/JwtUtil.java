@@ -5,6 +5,7 @@ import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 
 import java.security.Key;
+import java.util.Calendar;
 import java.util.Date;
 
 /**
@@ -18,24 +19,34 @@ public class JwtUtil {
     private static final String SECRET_KEY = "genie_jwt_secret_key_20250127_change_me_in_production_environment";
     private static final Key KEY = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
 
-    // Token 过期时间：7天（毫秒）
-    private static final long EXPIRATION_TIME = 7 * 24 * 60 * 60 * 1000L;
-
     /**
      * 生成Token
+     * Token有效期：当天的23:59:59
+     *
      * @param userId 用户ID
      * @param username 用户名
      * @return JWT Token字符串
      */
     public static String generateToken(Long userId, String username) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + EXPIRATION_TIME);
+
+        // 计算当天23:59:59作为过期时间
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(now);
+        calendar.set(Calendar.HOUR_OF_DAY, 23);
+        calendar.set(Calendar.MINUTE, 59);
+        calendar.set(Calendar.SECOND, 59);
+        calendar.set(Calendar.MILLISECOND, 999);
+        Date expiryDate = calendar.getTime();
+
+        log.info("生成Token - 用户: {}, 签发时间: {}, 过期时间: {}",
+                 username, now, expiryDate);
 
         return Jwts.builder()
                 .setSubject(username)                    // 设置主题（用户名）
                 .claim("userId", userId)                 // 自定义声明（用户ID）
                 .setIssuedAt(now)                        // 签发时间
-                .setExpiration(expiryDate)               // 过期时间
+                .setExpiration(expiryDate)               // 过期时间（当天23:59:59）
                 .signWith(KEY, SignatureAlgorithm.HS256) // 签名算法和密钥
                 .compact();
     }

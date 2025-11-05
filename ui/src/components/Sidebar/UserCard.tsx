@@ -1,10 +1,9 @@
 import { memo, useEffect, useState } from 'react';
 import { Avatar, Dropdown, message } from 'antd';
-import { UserOutlined, HistoryOutlined, LogoutOutlined, SettingOutlined, RobotOutlined } from '@ant-design/icons';
+import { UserOutlined, HistoryOutlined, LogoutOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '@/store/user';
 import { getUserInfo } from '@/api/user';
-import { AgentSettings } from '@/components/AgentSettings';
 import type { MenuProps } from 'antd';
 
 /**
@@ -15,7 +14,6 @@ const UserCard: GenieType.FC = memo(() => {
   const navigate = useNavigate();
   const { userInfo: storeUserInfo, setUserInfo, logout } = useUserStore();
   const [loading, setLoading] = useState(false);
-  const [settingsVisible, setSettingsVisible] = useState(false);
 
   /**
    * 组件挂载时获取用户信息
@@ -51,12 +49,6 @@ const UserCard: GenieType.FC = memo(() => {
    * 用户下拉菜单配置
    */
   const userMenuItems: MenuProps['items'] = [
-    {
-      key: 'agent-settings',
-      icon: <RobotOutlined />,
-      label: '智能体设置',
-      onClick: () => setSettingsVisible(true),
-    },
     {
       key: 'settings',
       icon: <SettingOutlined />,
@@ -153,12 +145,6 @@ const UserCard: GenieType.FC = memo(() => {
           </div>
         </div>
       </Dropdown>
-
-      {/* 智能体设置对话框 */}
-      <AgentSettings
-        visible={settingsVisible}
-        onClose={() => setSettingsVisible(false)}
-      />
     </>
   );
 });

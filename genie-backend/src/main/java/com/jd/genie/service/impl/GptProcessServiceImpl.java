@@ -20,10 +20,6 @@ public class GptProcessServiceImpl implements IGptProcessService {
     @Override
     public SseEmitter queryMultiAgentIncrStream(GptQueryReq req) {
         long timeoutMillis = TimeUnit.HOURS.toMillis(1);
-        // 只在user为null时设置默认值，保留从queryAgentStreamIncr传递过来的userId
-        if (req.getUser() == null) {
-            req.setUser("genie");
-        }
         req.setDeepThink(req.getDeepThink() == null ? 0: req.getDeepThink());
         String traceId = ChateiUtils.getRequestId(req);
         req.setTraceId(traceId);

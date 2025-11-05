@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.jd.genie.entity.ChatMessage;
-import com.jd.genie.service.SSEMessageCacheService;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,9 +34,6 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Component
 public class CozeAgentAdapter implements AgentAdapter {
-
-    @Autowired
-    private SSEMessageCacheService cacheService;
 
     // HTTP客户端配置（设置合理的超时时间）
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
@@ -121,9 +117,6 @@ public class CozeAgentAdapter implements AgentAdapter {
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
 
-                // 步骤5：持久化缓存消息
-                persistCachedMessages(sessionId);
-
             } catch (Exception e) {
                 log.error("Coze适配器处理失败", e);
                 try {
@@ -134,6 +127,98 @@ public class CozeAgentAdapter implements AgentAdapter {
                     log.error("发送错误消息失败", ex);
                 }
                 emitter.completeWithError(e);
+            } finally {
+                activeCalls.remove(sessionId);
+                chatIds.remove(sessionId);
+            }
+        }).start();
+
+        return response;
+    }
+
+    /**
+     * 发送聊天请求（支持自定义emitter）
+     * 用于ExternalAgentExecutor的数据收集场景
+     */
+    @Override
+    public ChatResponse sendChatRequest(String sessionId,
+                                       String userMessage,
+                                       List<ChatMessage> history,
+                                       String apiEndpoint,
+                                       String apiKey,
+                                       String botId,
+                                       String externalSessionId,
+                                       SseEmitter customEmitter) {
+        log.info("Coze适配器处理请求（使用自定义emitter） - 会话ID: {}, Bot ID: {}, 外部会话ID: {}",
+                sessionId, botId, externalSessionId);
+
+        // 验证必填参数
+        if (botId == null || botId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Coze平台的Bot ID不能为空");
+        }
+
+        ChatResponse response = new ChatResponse();
+        response.setEmitter(customEmitter);
+
+        // 异步处理
+        new Thread(() -> {
+            try {
+                String conversationId = externalSessionId;
+
+                // 步骤1：如果没有外部会话ID，创建新会话
+                if (conversationId == null || conversationId.trim().isEmpty()) {
+                    log.info("创建新的Coze会话 - Bot ID: {}", botId);
+                    conversationId = createConversation(apiEndpoint, apiKey, botId);
+                    log.info("Coze会话创建成功 - Conversation ID: {}", conversationId);
+                    response.setExternalSessionId(conversationId);
+                }
+
+                // 步骤2：发起Chat请求
+                String chatApiUrl = buildChatUrl(apiEndpoint, conversationId);
+                log.info("发起Coze对话 - URL: {}, Conversation ID: {}", chatApiUrl, conversationId);
+
+                JSONObject requestBody = buildChatRequest(botId, userMessage);
+
+                RequestBody body = RequestBody.create(
+                        requestBody.toJSONString(),
+                        MediaType.parse("application/json; charset=utf-8")
+                );
+
+                Request request = new Request.Builder()
+                        .url(chatApiUrl)
+                        .post(body)
+                        .addHeader("Authorization", "Bearer " + apiKey)
+                        .addHeader("Content-Type", "application/json")
+                        .build();
+
+                Call call = httpClient.newCall(request);
+                activeCalls.put(sessionId, call);
+
+                Response httpResponse = call.execute();
+
+                if (!httpResponse.isSuccessful()) {
+                    String errorBody = httpResponse.body() != null ? httpResponse.body().string() : "Unknown error";
+                    log.error("Coze API请求失败 - 状态码: {}, 响应: {}", httpResponse.code(), errorBody);
+                    throw new RuntimeException("Coze API请求失败: " + httpResponse.code() + " - " + errorBody);
+                }
+
+                // 步骤3：处理SSE流式响应（使用自定义emitter）
+                processCozeSSEStream(httpResponse.body().byteStream(), sessionId, customEmitter);
+
+                // 步骤4：发送完成信号
+                customEmitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                customEmitter.complete();
+
+            } catch (Exception e) {
+                log.error("Coze适配器处理失败", e);
+                try {
+                    customEmitter.send(SseEmitter.event()
+                            .name("error")
+                            .data("Coze智能体响应失败: " + e.getMessage()));
+                } catch (Exception ex) {
+                    log.error("发送错误消息失败", ex);
+                }
+                customEmitter.completeWithError(e);
             } finally {
                 activeCalls.remove(sessionId);
                 chatIds.remove(sessionId);
@@ -160,8 +245,6 @@ public class CozeAgentAdapter implements AgentAdapter {
         //     cancelChat(conversationId, chatId);
         // }
 
-        // 持久化已缓存的消息
-        persistCachedMessages(sessionId);
         chatIds.remove(sessionId);
     }
 
@@ -328,7 +411,7 @@ public class CozeAgentAdapter implements AgentAdapter {
                     String data = line.substring(5).trim();
 
                     // 检查结束标记
-                    if ("[DONE]".equals(data)) {
+                    if ("\"[DONE]\"".equals(data)) {
                         log.debug("Coze SSE流结束");
                         break;
                     }
@@ -345,18 +428,14 @@ public class CozeAgentAdapter implements AgentAdapter {
                         // 根据事件类型处理
                         if ("conversation.message.delta".equals(currentEvent)) {
                             // 增量消息 - 提取内容并发送
-                            String content = extractMessageContent(eventData);
-                            if (content != null && !content.isEmpty()) {
-                                messageContent.append(content);
-
-                                // 缓存消息
-                                cacheService.cacheMessage(sessionId, sequence++, currentEvent, content, data);
+//                            String content = extractMessageContent(eventData);
 
                                 // 转发给前端
                                 emitter.send(SseEmitter.event()
-                                        .name("message")
-                                        .data(content));
-                            }
+                                        .name("conversation.message.delta")
+                                        .data(data));
+                                emitter.send(data);
+
                         } else if ("conversation.chat.failed".equals(currentEvent)) {
                             // 对话失败
                             String errorMsg = eventData.getString("last_error");
@@ -417,16 +496,4 @@ public class CozeAgentAdapter implements AgentAdapter {
         }
     }
 
-    /**
-     * 持久化缓存消息到chat_message表
-     */
-    private void persistCachedMessages(String sessionId) {
-        try {
-            cacheService.markAsPersisted(sessionId);
-            cacheService.cleanPersistedCache(sessionId);
-            log.debug("会话{}的消息已持久化", sessionId);
-        } catch (Exception e) {
-            log.error("持久化消息失败 - 会话ID: {}", sessionId, e);
-        }
-    }
 }

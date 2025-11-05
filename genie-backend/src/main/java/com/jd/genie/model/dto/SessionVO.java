@@ -48,6 +48,12 @@ public class SessionVO implements Serializable {
     private String outputStyle;
 
     /**
+     * 智能体配置ID
+     * 标识该会话使用的智能体平台配置
+     */
+    private Long agentProviderId;
+
+    /**
      * 创建时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

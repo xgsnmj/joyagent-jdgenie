@@ -1,9 +1,7 @@
 package com.jd.genie.adapter;
 
 import com.jd.genie.entity.ChatMessage;
-import com.jd.genie.service.SSEMessageCacheService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -22,9 +20,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 public class DefaultAgentAdapter implements AgentAdapter {
-
-    @Autowired
-    private SSEMessageCacheService cacheService;
 
     // 会话终止标记
     private final Map<String, Boolean> terminationFlags = new ConcurrentHashMap<>();
@@ -73,9 +68,6 @@ public class DefaultAgentAdapter implements AgentAdapter {
                         break;
                     }
 
-                    // 缓存消息
-                    cacheService.cacheMessage(sessionId, sequence++, "message", chunk, chunk);
-
                     // 发送给前端
                     emitter.send(SseEmitter.event()
                             .name("message")
@@ -87,9 +79,6 @@ public class DefaultAgentAdapter implements AgentAdapter {
                 // 发送完成信号
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
-
-                // 持久化缓存消息
-                persistCachedMessages(sessionId);
 
             } catch (Exception e) {
                 log.error("Default适配器处理失败", e);
@@ -113,9 +102,6 @@ public class DefaultAgentAdapter implements AgentAdapter {
     public void terminateChat(String sessionId) {
         log.info("终止Default会话: {}", sessionId);
         terminationFlags.put(sessionId, true);
-
-        // 持久化已缓存的消息
-        persistCachedMessages(sessionId);
     }
 
     @Override
@@ -133,40 +119,4 @@ public class DefaultAgentAdapter implements AgentAdapter {
         return message;
     }
 
-    /**
-     * 持久化缓存消息到chat_message表
-     *
-     * @param sessionId 会话ID
-     */
-    private void persistCachedMessages(String sessionId) {
-        try {
-            // TODO: 实现消息持久化逻辑
-            // 1. 从缓存表读取所有消息（按序号排序）
-            // List<SSEMessageCache> cachedMessages = cacheService.getSessionCachedMessages(sessionId);
-            //
-            // 2. 合并为完整消息
-            // StringBuilder fullMessage = new StringBuilder();
-            // for (SSEMessageCache cache : cachedMessages) {
-            //     fullMessage.append(cache.getEventData());
-            // }
-            //
-            // 3. 保存到chat_message表
-            // ChatMessage message = new ChatMessage();
-            // message.setSessionId(sessionId.toString());
-            // message.setRole("assistant");
-            // message.setContent(fullMessage.toString());
-            // message.setMessageFormat("default");
-            // chatMessageService.save(message);
-            //
-            // 4. 标记缓存为已持久化
-            cacheService.markAsPersisted(sessionId);
-            //
-            // 5. 清理缓存
-            cacheService.cleanPersistedCache(sessionId);
-
-            log.debug("会话{}的消息已持久化", sessionId);
-        } catch (Exception e) {
-            log.error("持久化消息失败 - 会话ID: {}", sessionId, e);
-        }
-    }
 }

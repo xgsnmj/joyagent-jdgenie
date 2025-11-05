@@ -3,7 +3,6 @@ package com.jd.genie.adapter;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.jd.genie.entity.ChatMessage;
-import com.jd.genie.service.SSEMessageCacheService;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,9 +28,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 public class RonghuiAgentAdapter implements AgentAdapter {
-
-    @Autowired
-    private SSEMessageCacheService cacheService;
 
     private final OkHttpClient httpClient = new OkHttpClient();
     private final Map<String, Call> activeCalls = new ConcurrentHashMap<>();
@@ -99,9 +95,6 @@ public class RonghuiAgentAdapter implements AgentAdapter {
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
 
-                // 持久化缓存消息
-                persistCachedMessages(sessionId);
-
             } catch (Exception e) {
                 log.error("融汇适配器处理失败", e);
                 try {
@@ -120,6 +113,82 @@ public class RonghuiAgentAdapter implements AgentAdapter {
         return response;
     }
 
+    /**
+     * 发送聊天请求（支持自定义emitter）
+     * 用于ExternalAgentExecutor的数据收集场景
+     */
+    @Override
+    public ChatResponse sendChatRequest(String sessionId,
+                                       String userMessage,
+                                       List<ChatMessage> history,
+                                       String apiEndpoint,
+                                       String apiKey,
+                                       String botId,
+                                       String externalSessionId,
+                                       SseEmitter customEmitter) {
+        log.info("融汇适配器处理请求（使用自定义emitter） - 会话ID: {}, 端点: {}, 外部会话ID: {}",
+                sessionId, apiEndpoint, externalSessionId);
+
+        ChatResponse response = new ChatResponse();
+        response.setEmitter(customEmitter);
+
+        // 异步处理
+        new Thread(() -> {
+            try {
+                // TODO: 根据融汇（阿里点金）API文档构建请求
+                JSONObject requestBody = buildRonghuiRequest(userMessage, history, externalSessionId);
+
+                RequestBody body = RequestBody.create(
+                        requestBody.toJSONString(),
+                        MediaType.parse("application/json; charset=utf-8")
+                );
+
+                Request request = new Request.Builder()
+                        .url(apiEndpoint)
+                        .post(body)
+                        .addHeader("Authorization", apiKey)
+                        .addHeader("Content-Type", "application/json")
+                        .build();
+
+                Call call = httpClient.newCall(request);
+                activeCalls.put(sessionId, call);
+
+                Response httpResponse = call.execute();
+
+                if (!httpResponse.isSuccessful()) {
+                    String errorBody = httpResponse.body() != null ? httpResponse.body().string() : "Unknown error";
+                    log.error("融汇API请求失败 - 状态码: {}, 响应: {}", httpResponse.code(), errorBody);
+                    throw new RuntimeException("融汇API请求失败: " + httpResponse.code());
+                }
+
+                // TODO: 从响应中提取外部会话ID
+                String newExternalSessionId = extractExternalSessionId(httpResponse);
+                response.setExternalSessionId(newExternalSessionId);
+
+                // 处理SSE流（使用自定义emitter）
+                processRonghuiSSEStream(httpResponse.body().byteStream(), sessionId, customEmitter);
+
+                customEmitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                customEmitter.complete();
+
+            } catch (Exception e) {
+                log.error("融汇适配器处理失败", e);
+                try {
+                    customEmitter.send(SseEmitter.event()
+                            .name("error")
+                            .data("融汇智能体响应失败: " + e.getMessage()));
+                } catch (Exception ex) {
+                    log.error("发送错误消息失败", ex);
+                }
+                customEmitter.completeWithError(e);
+            } finally {
+                activeCalls.remove(sessionId);
+            }
+        }).start();
+
+        return response;
+    }
+
     @Override
     public void terminateChat(String sessionId) {
         log.info("终止融汇会话: {}", sessionId);
@@ -129,9 +198,6 @@ public class RonghuiAgentAdapter implements AgentAdapter {
             call.cancel();
             activeCalls.remove(sessionId);
         }
-
-        // 持久化已缓存的消息
-        persistCachedMessages(sessionId);
     }
 
     @Override
@@ -230,9 +296,6 @@ public class RonghuiAgentAdapter implements AgentAdapter {
                         break;
                     }
 
-                    // 缓存消息
-                    cacheService.cacheMessage(sessionId, sequence++, "message", data, line);
-
                     // 转发给前端
                     emitter.send(SseEmitter.event()
                             .name("message")
@@ -245,12 +308,4 @@ public class RonghuiAgentAdapter implements AgentAdapter {
         }
     }
 
-    /**
-     * 持久化缓存消息
-     */
-    private void persistCachedMessages(String sessionId) {
-        // TODO: 实现消息持久化逻辑
-        cacheService.markAsPersisted(sessionId);
-        cacheService.cleanPersistedCache(sessionId);
-    }
 }

@@ -1,5 +1,6 @@
 package com.jd.genie.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.jd.genie.common.Result;
 import com.jd.genie.config.security.CustomUserDetails;
 import com.jd.genie.dto.AgentProviderDTO;
@@ -43,7 +44,8 @@ public class AgentProviderController {
         try {
             CustomUserDetails details  =  (CustomUserDetails)authentication.getPrincipal();
             Long userId = details.getSysUser().getId();
-            List<AgentProvider> providers = agentProviderService.getUserProviders(userId);
+            List<AgentProvider> providers = agentProviderService.list(new QueryWrapper<AgentProvider>().lambda()
+                    .eq(AgentProvider::getStatus, 1));
             List<AgentProviderDTO> dtos = providers.stream()
                     .map(this::toDTO)
                     .collect(Collectors.toList());
@@ -93,10 +95,24 @@ public class AgentProviderController {
                 }
             }
 
+            // 验证描述长度（最多500字符）
+            if (request.getDescription() != null && request.getDescription().length() > 500) {
+                return Result.error("智能体简介不能超过500字符");
+            }
+
             AgentProvider provider = new AgentProvider();
             BeanUtils.copyProperties(request, provider);
             provider.setUserId(userId);
+            provider.setCreatorId(userId);  // 设置创建者ID
             provider.setCreateTime(LocalDateTime.now());
+
+            // 默认公开，用户可后续修改
+            if (provider.getIsPublic() == null) {
+                provider.setIsPublic(true);
+            }
+
+            // 初始化使用次数
+            provider.setUsageCount(0);
 
             // 如果是用户的第一个非default智能体，可以自动设为默认
             List<AgentProvider> existing = agentProviderService.getUserProviders(userId);
@@ -109,7 +125,9 @@ public class AgentProviderController {
             }
 
             agentProviderService.save(provider);
-            log.info("用户{}创建智能体配置: {} ({})", userId, provider.getProviderName(), provider.getProviderType());
+            log.info("用户{}创建智能体配置: {} ({}), 公开状态: {}, 分类: {}",
+                    userId, provider.getProviderName(), provider.getProviderType(),
+                    provider.getIsPublic(), provider.getCategory());
 
             return Result.success(toDTO(provider));
         } catch (Exception e) {

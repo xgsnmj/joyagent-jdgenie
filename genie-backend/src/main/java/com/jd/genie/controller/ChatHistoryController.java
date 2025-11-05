@@ -252,81 +252,81 @@ public class ChatHistoryController {
      * @param httpRequest HTTP请求对象，用于获取用户认证信息
      * @return 成功/失败响应
      */
-    @PostMapping("/sessions/{sessionId}/multiagent")
-    @Operation(summary = "上报multiAgent数据", description = "前端上报完整的对话数据结构用于历史会话恢复")
-    public Result<Void> uploadMultiAgent(
-            @Parameter(description = "会话ID") @PathVariable String sessionId,
-            @RequestBody com.jd.genie.model.req.UploadMultiAgentRequest request,
-            HttpServletRequest httpRequest) {
-        try {
-            // 1. 验证用户权限（JWT）
-            Long userId = getUserIdFromRequest(httpRequest);
-            if (userId == null) {
-                return Result.error(401, "未登录");
-            }
-
-            // 2. 验证会话归属
-            if (!chatHistoryService.isSessionOwner(sessionId, userId)) {
-                log.warn("会话归属验证失败: sessionId={}, userId={}", sessionId, userId);
-                return Result.error(403, "无权限操作此会话");
-            }
-
-            // 3. 查找对应的assistant消息
-            Long messageId = chatHistoryService.findAssistantMessageByRequestId(
-                sessionId,
-                request.getRequestId()
-            );
-
-            if (messageId == null) {
-                log.warn("未找到对应的assistant消息: sessionId={}, requestId={}",
-                         sessionId, request.getRequestId());
-                return Result.error(404, "未找到对应的消息");
-            }
-
-            // 4. 读取原有metadata（保留后端保存的rawMessages等数据）
-            com.jd.genie.entity.ChatMessage existingMessage =
-                chatHistoryService.getMessageById(messageId);
-            Map<String, Object> existingMetadata = new java.util.HashMap<>();
-
-            if (existingMessage != null &&
-                existingMessage.getMetadata() != null &&
-                !existingMessage.getMetadata().isEmpty()) {
-                try {
-                    existingMetadata = com.alibaba.fastjson.JSON.parseObject(
-                        existingMessage.getMetadata(),
-                        new com.alibaba.fastjson.TypeReference<Map<String, Object>>() {}
-                    );
-                    log.debug("成功读取原有metadata: messageId={}, keys={}",
-                             messageId, existingMetadata.keySet());
-                } catch (Exception e) {
-                    log.warn("解析原有metadata失败，使用空对象: messageId={}, error={}",
-                            messageId, e.getMessage());
-                }
-            }
-
-            // 5. 构建metadata（合并原有数据，保留rawMessages）
-            Map<String, Object> metadata = new java.util.HashMap<>(existingMetadata);
-            metadata.put("multiAgent", request.getMultiAgent());
-            metadata.put("version", "1.0");
-            metadata.put("source", "frontend+backend");  // 标识为合并数据
-            metadata.put("timestamp", System.currentTimeMillis());
-            metadata.put("requestId", request.getRequestId());
-            // rawMessages会自动保留（如果原metadata中存在）
-
-            // 6. 更新metadata字段
-            String metadataJson = com.alibaba.fastjson.JSON.toJSONString(metadata);
-            chatHistoryService.updateMessageMetadata(messageId, metadataJson);
-
-            log.info("MultiAgent数据上报成功: sessionId={}, messageId={}, requestId={}, size={}",
-                     sessionId, messageId, request.getRequestId(), metadataJson.length());
-
-            return Result.success();
-        } catch (Exception e) {
-            log.error("MultiAgent数据上报失败: sessionId={}, requestId={}, error={}",
-                      sessionId, request.getRequestId(), e.getMessage(), e);
-            return Result.error("上报失败: " + e.getMessage());
-        }
-    }
+//    @PostMapping("/sessions/{sessionId}/multiagent")
+//    @Operation(summary = "上报multiAgent数据", description = "前端上报完整的对话数据结构用于历史会话恢复")
+//    public Result<Void> uploadMultiAgent(
+//            @Parameter(description = "会话ID") @PathVariable String sessionId,
+//            @RequestBody com.jd.genie.model.req.UploadMultiAgentRequest request,
+//            HttpServletRequest httpRequest) {
+//        try {
+//            // 1. 验证用户权限（JWT）
+//            Long userId = getUserIdFromRequest(httpRequest);
+//            if (userId == null) {
+//                return Result.error(401, "未登录");
+//            }
+//
+//            // 2. 验证会话归属
+//            if (!chatHistoryService.isSessionOwner(sessionId, userId)) {
+//                log.warn("会话归属验证失败: sessionId={}, userId={}", sessionId, userId);
+//                return Result.error(403, "无权限操作此会话");
+//            }
+//
+//            // 3. 查找对应的assistant消息
+//            Long messageId = chatHistoryService.findAssistantMessageByRequestId(
+//                sessionId,
+//                request.getRequestId()
+//            );
+//
+//            if (messageId == null) {
+//                log.warn("未找到对应的assistant消息: sessionId={}, requestId={}",
+//                         sessionId, request.getRequestId());
+//                return Result.error(404, "未找到对应的消息");
+//            }
+//
+//            // 4. 读取原有metadata（保留后端保存的rawMessages等数据）
+//            com.jd.genie.entity.ChatMessage existingMessage =
+//                chatHistoryService.getMessageById(messageId);
+//            Map<String, Object> existingMetadata = new java.util.HashMap<>();
+//
+//            if (existingMessage != null &&
+//                existingMessage.getMetadata() != null &&
+//                !existingMessage.getMetadata().isEmpty()) {
+//                try {
+//                    existingMetadata = com.alibaba.fastjson.JSON.parseObject(
+//                        existingMessage.getMetadata(),
+//                        new com.alibaba.fastjson.TypeReference<Map<String, Object>>() {}
+//                    );
+//                    log.debug("成功读取原有metadata: messageId={}, keys={}",
+//                             messageId, existingMetadata.keySet());
+//                } catch (Exception e) {
+//                    log.warn("解析原有metadata失败，使用空对象: messageId={}, error={}",
+//                            messageId, e.getMessage());
+//                }
+//            }
+//
+//            // 5. 构建metadata（合并原有数据，保留rawMessages）
+//            Map<String, Object> metadata = new java.util.HashMap<>(existingMetadata);
+//            metadata.put("multiAgent", request.getMultiAgent());
+//            metadata.put("version", "1.0");
+//            metadata.put("source", "frontend+backend");  // 标识为合并数据
+//            metadata.put("timestamp", System.currentTimeMillis());
+//            metadata.put("requestId", request.getRequestId());
+//            // rawMessages会自动保留（如果原metadata中存在）
+//
+//            // 6. 更新metadata字段
+//            String metadataJson = com.alibaba.fastjson.JSON.toJSONString(metadata);
+//            chatHistoryService.updateMessageMetadata(messageId, metadataJson);
+//
+//            log.info("MultiAgent数据上报成功: sessionId={}, messageId={}, requestId={}, size={}",
+//                     sessionId, messageId, request.getRequestId(), metadataJson.length());
+//
+//            return Result.success();
+//        } catch (Exception e) {
+//            log.error("MultiAgent数据上报失败: sessionId={}, requestId={}, error={}",
+//                      sessionId, request.getRequestId(), e.getMessage(), e);
+//            return Result.error("上报失败: " + e.getMessage());
+//        }
+//    }
 
     /**
      * 从请求中提取用户ID

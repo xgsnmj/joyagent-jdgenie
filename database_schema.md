@@ -602,53 +602,6 @@ CREATE TABLE `agent_provider` (
 
 ---
 
-### 9. sse_message_cache（SSE消息缓存表）
-
-临时存储SSE流消息，用于在流结束后统一持久化到chat_message表。
-
-**表名**: `sse_message_cache`
-
-| 字段名 | 类型 | 长度 | 允许NULL | 默认值 | 主键 | 自增 | 说明 |
-|-------|------|------|----------|--------|------|------|------|
-| id | BIGINT | - | NO | - | YES | YES | 主键ID |
-| session_id | BIGINT | - | NO | - | NO | NO | 会话ID |
-| message_sequence | INT | - | NO | - | NO | NO | 消息序号（从0开始递增）|
-| event_type | VARCHAR | 50 | YES | NULL | NO | NO | SSE事件类型（message/error/done）|
-| event_data | MEDIUMTEXT | - | YES | NULL | NO | NO | 事件数据内容 |
-| raw_data | MEDIUMTEXT | - | YES | NULL | NO | NO | 原始数据（完整SSE消息）|
-| is_persisted | TINYINT | - | YES | 0 | NO | NO | 是否已持久化 |
-| create_time | DATETIME | - | YES | CURRENT_TIMESTAMP | NO | NO | 创建时间 |
-
-**索引**:
-- PRIMARY KEY (`id`)
-- KEY `idx_session` (`session_id`, `message_sequence`) - 联合索引
-- KEY `idx_persisted` (`is_persisted`, `create_time`) - 联合索引
-
-**建表SQL**:
-```sql
-CREATE TABLE `sse_message_cache` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `session_id` BIGINT NOT NULL COMMENT '会话ID',
-  `message_sequence` INT NOT NULL COMMENT '消息序号（从0开始递增）',
-  `event_type` VARCHAR(50) COMMENT 'SSE事件类型（如message、error、done）',
-  `event_data` MEDIUMTEXT COMMENT '事件数据内容',
-  `raw_data` MEDIUMTEXT COMMENT '原始数据（完整SSE消息）',
-  `is_persisted` TINYINT(1) DEFAULT 0 COMMENT '是否已持久化到chat_message表（0-否 1-是）',
-  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  PRIMARY KEY (`id`),
-  KEY `idx_session` (`session_id`, `message_sequence`),
-  KEY `idx_persisted` (`is_persisted`, `create_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SSE消息缓存表（临时存储SSE流，待流结束后统一持久化）';
-```
-
-**生命周期**:
-1. SSE流开始时：逐条写入缓存表
-2. SSE流结束时：合并消息并写入chat_message表
-3. 持久化后：标记is_persisted=1
-4. 定期清理：调用存储过程清理已持久化的缓存
-
----
-
 ### chat_session 表新增字段（V2.0）
 
 **新增字段**:
@@ -717,36 +670,6 @@ DELIMITER ;
 
 ---
 
-### 存储过程（V2.0）
-
-#### clean_persisted_sse_cache()
-
-**功能**: 清理已持久化的SSE缓存消息
-**执行逻辑**: 删除is_persisted=1的所有记录
-**返回值**: 删除的记录数量
-**调用时机**: 定时任务或手动调用
-
-**存储过程SQL**:
-```sql
-DELIMITER $$
-
-CREATE PROCEDURE clean_persisted_sse_cache()
-BEGIN
-    DELETE FROM sse_message_cache
-    WHERE is_persisted = 1;
-    SELECT ROW_COUNT() AS deleted_count;
-END$$
-
-DELIMITER ;
-```
-
-**调用示例**:
-```sql
-CALL clean_persisted_sse_cache();
-```
-
----
-
 ## 表关系说明（V2.0更新）
 
 新增关系：
@@ -760,11 +683,6 @@ CALL clean_persisted_sse_cache();
    - 一个智能体配置可以被多个会话使用
    - 通过 `chat_session.agent_provider_id` 关联 `agent_provider.id`
    - 会话创建后不允许切换智能体
-
-7. **chat_session ↔ sse_message_cache**: 一对多关系
-   - 一个会话可以有多条SSE缓存消息
-   - 通过 `sse_message_cache.session_id` 关联 `chat_session.id`
-   - 缓存消息在持久化后会被清理
 
 ---
 
@@ -795,20 +713,6 @@ CALL clean_persisted_sse_cache();
   → 实现上下文连续性
 ```
 
-### SSE消息处理流程
-```
-用户发送消息
-  → 后端转发到智能体平台
-  → 接收SSE流
-    → 逐条写入sse_message_cache表
-    → 同时转发给前端
-  → SSE流结束
-    → 合并缓存消息
-    → 持久化到chat_message表
-    → 标记is_persisted=1
-    → 清理缓存
-```
-
 ---
 
 ## 变更记录（V2.0）
@@ -816,18 +720,14 @@ CALL clean_persisted_sse_cache();
 ### 2025-01-03（多智能体平台接入）
 - **新增表**：
   - `agent_provider`: 智能体服务商配置表
-  - `sse_message_cache`: SSE消息缓存表
 - **修改表**：
   - `chat_session`: 新增 `agent_provider_id` 和 `external_session_id` 字段
   - `chat_message`: 新增 `message_format` 和 `raw_content` 字段
 - **新增触发器**：
   - `before_agent_provider_set_default`: 确保每个用户只有一个默认智能体
-- **新增存储过程**：
-  - `clean_persisted_sse_cache()`: 清理已持久化的SSE缓存
 - **功能特性**：
   - 支持对接Coze、融汇等外部智能体平台
   - 支持多轮对话（通过external_session_id）
-  - 支持SSE流式响应缓存和持久化
   - 支持用户独立配置和管理智能体
   - 支持设置默认智能体
   - 历史会话禁止切换智能体
@@ -842,3 +742,86 @@ CALL clean_persisted_sse_cache();
   - 前端根据平台类型条件显示bot_id输入字段
   - 后端在创建和更新时验证Coze平台的bot_id必填
 - **迁移脚本**：`database/migration_v2.1_add_bot_id.sql`
+
+### 2025-01-04（删除sse_message_cache缓存表）
+- **删除表**：
+  - `sse_message_cache`: SSE消息缓存表（已废弃）
+- **删除存储过程**：
+  - `clean_persisted_sse_cache()`: 清理SSE缓存的存储过程
+- **删除原因**：
+  - 持久化逻辑未实现（TODO状态），表未发挥实际作用
+  - 新架构采用拦截器 + ConversationDataCollector 直接收集数据
+  - 不再需要中间缓存层，简化系统架构
+- **代码清理**：
+  - 删除 `SSEMessageCache.java` 实体类
+  - 删除 `SSEMessageCacheService.java` 服务类
+  - 删除 `SSEMessageCacheMapper.java` Mapper
+  - 清理3个适配器中的缓存调用代码（Coze、Ronghui、Default）
+- **迁移脚本**：`database/migration_v2.2_remove_sse_cache.sql`
+
+### 2025-01-05（智能体社区功能）
+- **修改表**：
+  - `agent_provider`: 新增6个字段支持智能体社区功能
+    - `description` (TEXT): 智能体简介（最多500字符）
+    - `icon` (VARCHAR 500): 智能体图标URL
+    - `creator_id` (BIGINT): 创建者用户ID，用于"我的智能体"筛选
+    - `is_public` (TINYINT): 是否公开（1-公开，0-私有）
+    - `usage_count` (INT): 使用次数统计
+    - `category` (VARCHAR 50): 分类标签（教育/新零售/消费等）
+  - 新增索引：
+    - `idx_creator_id`: 创建者ID索引
+    - `idx_is_public`: 公开状态索引
+    - `idx_category`: 分类索引
+  - 修改唯一索引：
+    - 删除 `uk_user_provider_name`
+    - 新增 `uk_creator_provider_name` (creator_id, provider_name)
+- **功能特性**：
+  - **智能体社区**: 所有公开智能体供用户浏览和使用
+  - **卡片式展示**: 图标、名称、简介、分类、使用次数
+  - **分类筛选**: 按教育、新零售、消费等分类浏览
+  - **搜索功能**: 按名称或简介搜索智能体
+  - **使用统计**: 每次选择智能体时usage_count自动+1
+  - **公开/私有**: 用户可设置智能体是否公开到社区
+  - **管理我的智能体**: 用户可管理自己创建的智能体
+- **架构变更**：
+  - 智能体从"用户私有配置"转变为"社区共享资源"
+  - `user_id` 字段保留向后兼容，新增 `creator_id` 标识创建者
+  - `is_public=1` 的智能体对所有用户可见和使用
+  - `is_public=0` 的智能体仅创建者可见
+- **前端新增**：
+  - **Sidebar**: 新增"智能体社区"按钮
+  - **AgentCommunityModal**: 智能体社区弹窗，展示公开智能体
+  - **ManageMyAgentsModal**: 管理我的智能体弹窗
+  - **MyAgentsList**: 我的智能体列表组件
+  - **AgentCard**: 智能体卡片组件
+  - **AgentForm**: 扩展表单支持新字段（icon、description、category、isPublic）
+- **前端移除**：
+  - 从UserCard移除"智能体设置"菜单项
+  - 智能体管理入口统一到"智能体社区"
+- **后端新增**：
+  - **AgentCommunityController**: 新控制器，提供社区API
+    - `GET /api/agent-community/public`: 获取公开智能体
+    - `GET /api/agent-community/my-agents`: 获取我创建的智能体
+    - `GET /api/agent-community/search`: 搜索智能体
+    - `POST /api/agent-community/use/{id}`: 记录使用次数
+    - `GET /api/agent-community/categories`: 获取分类列表
+  - **AgentProviderService**: 新增方法
+    - `getAllPublicProviders()`: 获取所有公开智能体
+    - `getPublicProvidersByCategory()`: 按分类获取公开智能体
+    - `getMyCreatedProviders()`: 获取我创建的智能体
+    - `incrementUsageCount()`: 增加使用次数
+    - `searchProviders()`: 搜索智能体
+  - **AgentProviderController**: 修改create方法
+    - 自动设置 `creator_id = userId`
+    - 默认 `is_public = true`
+    - 验证 `description` 长度≤500字符
+    - 初始化 `usage_count = 0`
+- **迁移脚本**：`database/migration/20250105_agent_community.sql`
+- **数据迁移**：
+  - 备份现有数据到 `agent_provider_backup_20250105`
+  - 将现有 `user_id` 复制到 `creator_id`
+  - 验证数据完整性
+- **向后兼容**：
+  - 保留 `user_id` 字段用于向后兼容
+  - 旧数据自动迁移 `creator_id`
+  - 前端支持新旧字段的fallback处理

@@ -61,4 +61,23 @@ public class AgentProviderRequest {
      * 额外配置（JSON格式）
      */
     private String extraConfig;
+
+    /**
+     * 智能体简介（最多500字符）
+     * 用于智能体社区展示
+     */
+    @Size(max = 500, message = "智能体简介不能超过500个字符")
+    private String description;
+
+    /**
+     * 智能体图标URL
+     * 用于智能体社区卡片展示
+     */
+    private String icon;
+
+    /**
+     * 分类标签
+     * 教育、新零售、消费、金融等
+     */
+    private String category;
 }

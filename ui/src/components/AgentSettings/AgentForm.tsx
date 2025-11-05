@@ -18,6 +18,8 @@ interface AgentFormProps {
   onSubmit: (values: AgentProviderFormData) => Promise<void>;
   /** 取消回调 */
   onCancel?: () => void;
+  /** 是否显示扩展字段（icon、description、category、isPublic）*/
+  showExtendedFields?: boolean;
 }
 
 /**
@@ -27,6 +29,7 @@ export const AgentForm: React.FC<AgentFormProps> = ({
   initialValues,
   onSubmit,
   onCancel,
+  showExtendedFields = false,
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
@@ -69,6 +72,7 @@ export const AgentForm: React.FC<AgentFormProps> = ({
       initialValues={{
         status: 1,
         isDefault: false,
+        isPublic: true, // 默认公开
         ...initialValues,
       }}
     >
@@ -98,6 +102,55 @@ export const AgentForm: React.FC<AgentFormProps> = ({
           showCount
         />
       </Form.Item>
+
+      {/* 扩展字段：智能体图标 */}
+      {showExtendedFields && (
+        <Form.Item
+          name="icon"
+          label="智能体图标"
+          tooltip="输入图标URL地址"
+        >
+          <Input placeholder="https://example.com/icon.png" />
+        </Form.Item>
+      )}
+
+      {/* 扩展字段：智能体简介 */}
+      {showExtendedFields && (
+        <Form.Item
+          name="description"
+          label="智能体简介"
+          rules={[{ max: 500, message: '简介不能超过500字符' }]}
+          tooltip="简要描述智能体的功能和用途（最多500字符）"
+        >
+          <Input.TextArea
+            rows={4}
+            showCount
+            maxLength={500}
+            placeholder="请输入智能体简介，帮助用户了解其功能..."
+          />
+        </Form.Item>
+      )}
+
+      {/* 扩展字段：分类标签 */}
+      {showExtendedFields && (
+        <Form.Item
+          name="category"
+          label="分类标签"
+          tooltip="选择智能体所属分类，便于用户筛选"
+        >
+          <Select placeholder="请选择分类">
+            <Select.Option value="教育">教育</Select.Option>
+            <Select.Option value="新零售">新零售</Select.Option>
+            <Select.Option value="消费">消费</Select.Option>
+            <Select.Option value="金融">金融</Select.Option>
+            <Select.Option value="医疗">医疗</Select.Option>
+            <Select.Option value="营销">营销</Select.Option>
+            <Select.Option value="客服">客服</Select.Option>
+            <Select.Option value="数据分析">数据分析</Select.Option>
+            <Select.Option value="办公助手">办公助手</Select.Option>
+          </Select>
+        </Form.Item>
+      )}
 
       <Form.Item
         name="apiEndpoint"
@@ -135,6 +188,18 @@ export const AgentForm: React.FC<AgentFormProps> = ({
             placeholder="请输入Coze平台的Bot ID"
             maxLength={100}
           />
+        </Form.Item>
+      )}
+
+      {/* 扩展字段：公开/私有 */}
+      {showExtendedFields && (
+        <Form.Item
+          name="isPublic"
+          label="公开设置"
+          valuePropName="checked"
+          tooltip="公开后所有用户可在智能体社区查看和使用"
+        >
+          <Switch checkedChildren="公开" unCheckedChildren="私有" />
         </Form.Item>
       )}
 

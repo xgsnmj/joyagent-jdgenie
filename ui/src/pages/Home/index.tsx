@@ -1,13 +1,17 @@
 import { useState, useCallback, memo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { message, Spin } from "antd";
+import { message, Spin, Button } from "antd";
+import { AppstoreOutlined } from '@ant-design/icons';
 import GeneralInput from "@/components/GeneralInput";
 import Slogn from "@/components/Slogn";
 import ChatView from "@/components/ChatView";
 import DataListDrawer from "@/components/DataListDrawer";
 import ColsAndDataDrawer from "@/components/DataListDrawer/ColsAndDataDrawer";
+import { AgentCommunityModal } from '@/components/AgentCommunity/AgentCommunityModal';
+import { ManageMyAgentsModal } from '@/components/AgentCommunity/ManageMyAgentsModal';
 import { getSessionMessages } from "@/api/chat";
 import { useAgentProviderStore } from "@/store/agentProvider";
+import { useSessionStore } from "@/store/session";
 
 import { productList, defaultProduct, chatQustions } from "@/utils/constants";
 import classNames from "classnames";
@@ -22,6 +26,7 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
     setCurrentProvider,
     fetchProviders
   } = useAgentProviderStore();  // 获取完整的智能体状态
+  const { sessions } = useSessionStore();  // 获取会话列表（用于恢复智能体配置）
   const [inputInfo, setInputInfo] = useState<CHAT.TInputInfo>({
     message: "",
     deepThink: false,
@@ -42,6 +47,10 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
 
   // 智能体选择状态
   const [selectedProviderId, setSelectedProviderId] = useState<number>();
+
+  // 智能体社区弹窗状态
+  const [communityModalVisible, setCommunityModalVisible] = useState(false);
+  const [manageModalVisible, setManageModalVisible] = useState(false);
 
   const changeInputInfo = useCallback((info: CHAT.TInputInfo) => {
     setInputInfo(info);
@@ -92,6 +101,7 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
    * 1. 不设置inputInfo，避免触发ChatView重新发送消息
    * 2. 不清空URL参数，URL是sessionId的唯一数据源
    * 3. 纯数据加载函数，不修改URL状态
+   * 4. 自动恢复该会话使用的智能体配置
    */
   const loadHistorySession = useCallback(async (sessionId: string) => {
     try {
@@ -103,6 +113,22 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
         // 这样ChatView会直接显示历史消息，而不会重新发送
         setHistoryMessages(messages);
         setLoadedSessionId(sessionId);
+
+        // 从会话列表中查找该会话，恢复智能体配置
+        const session = sessions.find(s => s.sessionId === sessionId);
+        if (session?.agentProviderId) {
+          setSelectedProviderId(session.agentProviderId);
+          const provider = providers.find(p => p.id === session.agentProviderId);
+          if (provider) {
+            setCurrentProvider(provider);
+            console.log('恢复历史会话的智能体配置:', {
+              sessionId,
+              agentProviderId: session.agentProviderId,
+              providerName: provider.providerName
+            });
+          }
+        }
+
         // 保持URL中的sessionId参数，作为唯一数据源
         console.log('历史会话加载成功:', { sessionId, messageCount: messages.length });
       }
@@ -112,7 +138,7 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
     } finally {
       setLoadingHistory(false);
     }
-  }, []);
+  }, [sessions, providers, setCurrentProvider]);
 
   /**
    * 监听URL参数变化，自动加载或清理历史会话
@@ -227,7 +253,46 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
     );
   };
 
-  return <div className="h-full flex flex-col items-center justify-center">{renderContent()}</div>;
+  return (
+    <div className="h-full flex flex-col items-center justify-center relative">
+      {/* 右上角智能体社区按钮 */}
+      <Button
+        icon={<AppstoreOutlined className="text-3xl" />}
+        size="large"
+        onClick={() => setCommunityModalVisible(true)}
+        className="absolute top-10 right-10 z-50 group rounded-2xl h-16 px-7 py-4 font-bold text-base overflow-hidden transition-all duration-500 ease-out bg-gradient-to-br from-[#4040ff] via-[#5858ff] to-[#764ba2] text-white shadow-2xl shadow-[#4040ff]/40 hover:shadow-[0_0_40px_rgba(64,64,255,0.6)] hover:scale-110 hover:rotate-1 cursor-pointer backdrop-blur-sm border border-white/20"
+        style={{
+          boxShadow: '0 8px 32px rgba(64, 64, 255, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1) inset'
+        }}
+      >
+        <span className="relative z-10 font-black flex items-center gap-2 drop-shadow-md">
+          <span className="inline-block animate-pulse">✨</span>
+          智能体社区
+        </span>
+        {/* 光效动画 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+      </Button>
+
+      {/* 主内容区域 */}
+      {renderContent()}
+
+      {/* 智能体社区弹窗 */}
+      <AgentCommunityModal
+        visible={communityModalVisible}
+        onClose={() => setCommunityModalVisible(false)}
+        onManageClick={() => {
+          setCommunityModalVisible(false);
+          setManageModalVisible(true);
+        }}
+      />
+
+      {/* 管理我的智能体弹窗 */}
+      <ManageMyAgentsModal
+        visible={manageModalVisible}
+        onClose={() => setManageModalVisible(false)}
+      />
+    </div>
+  );
 });
 
 Home.displayName = "Home";

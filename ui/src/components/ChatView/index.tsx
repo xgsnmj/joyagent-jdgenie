@@ -7,7 +7,6 @@ import {
 } from "@/utils";
 import querySSE, { SSEController } from "@/utils/querySSE";
 import { handleTaskData, combineData } from "@/utils/chat";
-import { uploadMultiAgentData } from "@/api/chat";
 import Dialogue from "@/components/Dialogue";
 import DataDialogue from "@/components/Dialogue/DataDialogue";
 import GeneralInput from "@/components/GeneralInput";
@@ -117,7 +116,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
   };
 
   const sendMessage = useMemoizedFn((inputInfo: CHAT.TInputInfo) => {
-    const { message, deepThink, outputStyle } = inputInfo;
+    const { message, deepThink, outputStyle, agentProviderId } = inputInfo;
     const requestId = getUniqId();
     let currentChat = combineCurrentChat(inputInfo, sessionId, requestId);
     chatList.current = [...chatList.current, currentChat];
@@ -142,7 +141,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
       query: message,
       deepThink: deepThink ? 1 : 0,
       outputStyle,
-      agentProviderId: selectedProviderId, // 携带智能体ID
+      agentProviderId: agentProviderId || selectedProviderId, // 优先使用传入的，fallback到内部state
     };
     const handleMessage = (data: MESSAGE.Answer) => {
       const { finished, resultMap, packageType, status } = data;
@@ -180,22 +179,6 @@ const ChatView: GenieType.FC<Props> = (props) => {
               currentChat.loading = false;
               setLoading(false);
               setIsStreaming(false); // 同步流式输出状态
-
-              // 对话完成后，上报完整的multiAgent数据到后端用于历史会话恢复
-              if (currentChat.multiAgent && Object.keys(currentChat.multiAgent).length > 0) {
-                uploadMultiAgentData(sessionId, requestId, currentChat.multiAgent)
-                  .then(() => {
-                    console.log('[uploadMultiAgentData] 成功上报multiAgent数据:', {
-                      sessionId,
-                      requestId,
-                      dataSize: JSON.stringify(currentChat.multiAgent).length
-                    });
-                  })
-                  .catch((error) => {
-                    console.error('[uploadMultiAgentData] 上报multiAgent数据失败:', error);
-                    // 上报失败不影响用户体验，只记录日志
-                  });
-              }
             }
             const newChatList = [...chatList.current];
             newChatList.splice(newChatList.length - 1, 1, currentChat);

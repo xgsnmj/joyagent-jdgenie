@@ -16,12 +16,20 @@ export type ProviderType = 'default' | 'coze' | 'ronghui';
 export interface AgentProvider {
   /** 主键ID */
   id: number;
-  /** 所属用户ID */
+  /** 所属用户ID（保留向后兼容）*/
   userId: number;
+  /** 创建者用户ID */
+  creatorId: number;
   /** 平台类型 */
   providerType: ProviderType;
   /** 应用名称（最多10个字）*/
   providerName: string;
+  /** 智能体简介（最多500字符）*/
+  description?: string;
+  /** 智能体图标URL */
+  icon?: string;
+  /** 分类标签 */
+  category?: string;
   /** API请求地址 */
   apiEndpoint?: string;
   /** API密钥（脱敏后）*/
@@ -30,6 +38,10 @@ export interface AgentProvider {
   botId?: string;
   /** 是否为该用户的默认智能体 */
   isDefault: boolean;
+  /** 是否公开（1-公开，0-私有）*/
+  isPublic: boolean;
+  /** 使用次数统计 */
+  usageCount?: number;
   /** 状态：0-禁用 1-启用 */
   status: number;
   /** 额外配置（JSON格式）*/
@@ -48,6 +60,12 @@ export interface AgentProviderRequest {
   providerType: ProviderType;
   /** 应用名称（最多10个字）*/
   providerName: string;
+  /** 智能体简介（最多500字符）*/
+  description?: string;
+  /** 智能体图标URL */
+  icon?: string;
+  /** 分类标签 */
+  category?: string;
   /** API请求地址 */
   apiEndpoint?: string;
   /** API密钥 */
@@ -56,6 +74,8 @@ export interface AgentProviderRequest {
   botId?: string;
   /** 是否为该用户的默认智能体 */
   isDefault?: boolean;
+  /** 是否公开（1-公开，0-私有）*/
+  isPublic?: boolean;
   /** 状态：0-禁用 1-启用 */
   status?: number;
   /** 额外配置（JSON格式）*/

@@ -72,6 +72,42 @@ public class AgentProvider {
     private Integer status;
 
     /**
+     * 智能体简介（最多500字符）
+     * 用于智能体社区展示
+     */
+    private String description;
+
+    /**
+     * 智能体图标URL
+     * 用于智能体社区卡片展示
+     */
+    private String icon;
+
+    /**
+     * 创建者用户ID
+     * 用于"我的智能体"筛选和权限控制
+     */
+    private Long creatorId;
+
+    /**
+     * 是否公开
+     * 1-公开（所有用户可见） 0-私有（仅创建者可见）
+     */
+    private Boolean isPublic;
+
+    /**
+     * 使用次数统计
+     * 每次用户选择该智能体发起对话时+1
+     */
+    private Integer usageCount;
+
+    /**
+     * 分类标签
+     * 教育、新零售、消费、金融等
+     */
+    private String category;
+
+    /**
      * 额外配置（JSON格式）
      * 用于存储平台特有参数
      */

@@ -38,6 +38,7 @@ declare global {
       message: string;
       outputStyle?: string;
       deepThink: boolean;
+      agentProviderId?: number; // 智能体ID（可选）
     };
 
     export type TAbortController = {
