@@ -30,6 +30,9 @@ public class UserServiceImpl implements IUserService {
     @Autowired
     private SysUserMapper sysUserMapper;
 
+    @Autowired
+    private com.jd.genie.service.AgentProviderService agentProviderService;
+
     /**
      * BCrypt密码编码器
      * 用于密码加密和验证
@@ -76,6 +79,15 @@ public class UserServiceImpl implements IUserService {
         int result = sysUserMapper.insert(user);
         if (result <= 0) {
             throw new RuntimeException("注册失败");
+        }
+
+        // 为新用户创建默认智能体配置
+        try {
+            agentProviderService.createDefaultProvider(user.getId());
+            log.info("用户注册成功并创建默认智能体 - 用户ID: {}, 用户名: {}", user.getId(), user.getUsername());
+        } catch (Exception e) {
+            log.error("创建默认智能体失败 - 用户ID: {}", user.getId(), e);
+            // 不影响注册流程，仅记录日志
         }
 
         // 生成Token

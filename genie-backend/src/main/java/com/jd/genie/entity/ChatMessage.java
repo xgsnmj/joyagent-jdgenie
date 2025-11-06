@@ -43,12 +43,28 @@ public class ChatMessage implements Serializable {
     private String role;
 
     /**
+     * 消息格式类型
+     * 标识消息来自哪个平台，便于前端渲染和调试
+     * - default: 本地MultiAgent体系
+     * - coze: Coze智能体平台
+     * - ronghui: 融汇（阿里点金）智能体平台
+     */
+    private String messageFormat;
+
+    /**
      * 消息内容
      * 存储实际的消息文本内容
      * 对于用户消息，是用户的提问
      * 对于助手消息，是AI的回复
      */
     private String content;
+
+    /**
+     * 原始响应内容（JSON格式）
+     * 存储平台返回的原始JSON响应，便于问题排查
+     * 不同平台的消息通过适配器统一格式化为标准的content字段
+     */
+    private String rawContent;
 
     /**
      * 附件文件信息（JSON格式）

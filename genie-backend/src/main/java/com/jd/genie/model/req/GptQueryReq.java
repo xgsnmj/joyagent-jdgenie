@@ -20,4 +20,6 @@ public class GptQueryReq {
     private String outputStyle;
     private String traceId;
     private String user;
+    //所选智能体Id
+    private Long agentProviderId;
 }

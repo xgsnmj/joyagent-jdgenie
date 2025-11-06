@@ -7,7 +7,6 @@ import {
 } from "@/utils";
 import querySSE, { SSEController } from "@/utils/querySSE";
 import { handleTaskData, combineData, createChat } from "@/utils/chat";
-import { uploadMultiAgentData } from "@/api/chat";
 import Dialogue from "@/components/Dialogue";
 import DataDialogue from "@/components/Dialogue/DataDialogue";
 import GeneralInput from "@/components/GeneralInput";
@@ -16,9 +15,10 @@ import { RESULT_TYPES } from "@/utils/constants";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 import Logo from "../Logo";
-import { Modal } from "antd";
+import { Modal, message } from "antd";
 import { useSessionStore } from "@/store/session";
 import { processAssistantHistoryMessage } from "@/utils/historyConverter";
+import { useAgentProviderStore } from "@/store/agentProvider";
 
 type Props = {
   // 用户输入
@@ -75,6 +75,40 @@ const ChatView: GenieType.FC<Props> = (props) => {
 
   // 获取会话store中的setIsStreaming和addMessage方法，用于同步流式输出状态和消息
   const { setIsStreaming, addMessage } = useSessionStore();
+
+  // 智能体状态管理
+  const { providers, currentProvider, setCurrentProvider, fetchProviders } =
+    useAgentProviderStore();
+
+  const [selectedProviderId, setSelectedProviderId] = useState<number>();
+
+  // 初始化：获取智能体配置
+  useEffect(() => {
+    fetchProviders();
+  }, [fetchProviders]);
+
+  // 设置默认选中的智能体
+  useEffect(() => {
+    if (currentProvider) {
+      setSelectedProviderId(currentProvider.id);
+    }
+  }, [currentProvider]);
+
+  // 处理智能体切换
+  const handleProviderChange = (providerId: number) => {
+    // 历史会话中禁止切换智能体
+    if (initialSessionId) {
+      message.warning("历史会话中无法切换智能体，请创建新会话");
+      return;
+    }
+
+    setSelectedProviderId(providerId);
+    const provider = providers.find((p) => p.id === providerId);
+    if (provider) {
+      setCurrentProvider(provider);
+      message.success(`已切换到智能体: ${provider.providerName}`);
+    }
+  };
 
   const openAction = (taskList: MESSAGE.Task[]) => {
     if (taskList.filter((t) => !RESULT_TYPES.includes(t.messageType)).length) {
@@ -141,7 +175,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
   };
 
   const sendMessage = useMemoizedFn((inputInfo: CHAT.TInputInfo) => {
-    const { message, deepThink, outputStyle } = inputInfo;
+    const { message, deepThink, outputStyle, agentProviderId } = inputInfo;
     const requestId = getUniqId();
     let currentChat = createChat(inputInfo, sessionId, requestId);
     currentChat.loading = true;
@@ -168,6 +202,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
       query: message,
       deepThink: deepThink ? 1 : 0,
       outputStyle,
+      agentProviderId: agentProviderId || selectedProviderId, // 优先使用传入的，fallback到内部state
     };
     const handleMessage = (data: MESSAGE.Answer) => {
       const { finished, resultMap, packageType, status } = data;
@@ -205,35 +240,6 @@ const ChatView: GenieType.FC<Props> = (props) => {
               currentChat.loading = false;
               setLoading(false);
               setIsStreaming(false); // 同步流式输出状态
-
-              // 对话完成后，上报完整的multiAgent数据到后端用于历史会话恢复
-              if (
-                currentChat.multiAgent &&
-                Object.keys(currentChat.multiAgent).length > 0
-              ) {
-                uploadMultiAgentData(
-                  sessionId,
-                  requestId,
-                  currentChat.multiAgent
-                )
-                  .then(() => {
-                    console.log(
-                      "[uploadMultiAgentData] 成功上报multiAgent数据:",
-                      {
-                        sessionId,
-                        requestId,
-                        dataSize: JSON.stringify(currentChat.multiAgent).length,
-                      }
-                    );
-                  })
-                  .catch((error) => {
-                    console.error(
-                      "[uploadMultiAgentData] 上报multiAgent数据失败:",
-                      error
-                    );
-                    // 上报失败不影响用户体验，只记录日志
-                  });
-              }
             }
             const newChatList = [...chatList.current];
             newChatList.splice(newChatList.length - 1, 1, currentChat);
@@ -466,10 +472,16 @@ const ChatView: GenieType.FC<Props> = (props) => {
             placeholder={
               loading ? "任务进行中" : "希望 Genie 为你做哪些任务呢？"
             }
-            showBtn={false}
+            showBtn={currentProvider?.providerType === "default"} // 只有默认智能体显示深度研究
             size="medium"
             disabled={loading}
-            product={product}
+            product={
+              currentProvider?.providerType === "default" ? product : undefined
+            } // 非默认不传product
+            agentProviderId={selectedProviderId}
+            agentProviders={providers}
+            onAgentChange={handleProviderChange}
+            isHistorySession={!!initialSessionId}
             // 多轮问答也不支持切换deepThink，使用传进来的
             send={(info) =>
               sendMessage({

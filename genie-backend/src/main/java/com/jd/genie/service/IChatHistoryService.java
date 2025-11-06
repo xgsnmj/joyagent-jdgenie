@@ -53,14 +53,15 @@ public interface IChatHistoryService {
      * 创建或获取会话
      * 如果会话不存在则创建，存在则返回现有会话
      *
-     * @param sessionId   会话ID
-     * @param userId      用户ID
-     * @param title       会话标题（可选）
-     * @param agentType   智能体类型
-     * @param outputStyle 输出样式
+     * @param sessionId        会话ID
+     * @param userId           用户ID
+     * @param title            会话标题（可选）
+     * @param agentType        智能体类型
+     * @param outputStyle      输出样式
+     * @param agentProviderId  智能体配置ID（可选，null时使用用户默认智能体）
      * @return 会话信息
      */
-    SessionVO createOrGetSession(String sessionId, Long userId, String title, String agentType, String outputStyle);
+    SessionVO createOrGetSession(String sessionId, Long userId, String title, String agentType, String outputStyle, Long agentProviderId);
 
     /**
      * 保存消息
@@ -153,4 +154,22 @@ public interface IChatHistoryService {
      * @return 消息实体，如果未找到则返回null
      */
     com.jd.genie.entity.ChatMessage getMessageById(Long messageId);
+
+    /**
+     * 根据sessionId获取会话实体
+     * 用于获取完整的会话信息（包括externalSessionId）
+     *
+     * @param sessionId 会话ID
+     * @return 会话实体，如果未找到则返回null
+     */
+    com.jd.genie.entity.ChatSession getSessionBySessionId(String sessionId);
+
+    /**
+     * 更新会话的外部会话ID
+     * 用于保存外部智能体平台返回的会话ID
+     *
+     * @param sessionId 会话ID
+     * @param externalSessionId 外部会话ID
+     */
+    void updateExternalSessionId(String sessionId, String externalSessionId);
 }

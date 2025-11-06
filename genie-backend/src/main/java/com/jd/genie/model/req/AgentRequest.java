@@ -20,6 +20,7 @@ import java.util.Map;
 public class AgentRequest {
     private String requestId;
     private String sessionId; // 会话ID，用于会话历史跟踪
+    private Long agentProviderId; // 智能体配置ID，用于指定使用的智能体平台
     private String erp;
     private String query;
     private Integer agentType;

@@ -101,49 +101,51 @@ const UserCard: GenieType.FC = memo(() => {
   const displayStatus = storeUserInfo.email || '在线';
 
   return (
-    <Dropdown
-      menu={{ items: userMenuItems }}
-      placement="topRight"
-      trigger={['click']}
-      arrow
-    >
-      <div className="relative cursor-pointer group">
-        {/* 主卡片 */}
-        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-4 shadow-lg border border-gray-100/50 hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
-          <div className="flex items-center gap-3">
-            {/* 头像 */}
-            <div className="relative flex-shrink-0">
-              <Avatar
-                size={48}
-                icon={<UserOutlined />}
-                src={storeUserInfo.avatar}
-                className="bg-gradient-to-br from-[#4040ff] to-[#764ba2] shadow-md ring-2 ring-white"
-              />
-              {/* 在线状态指示器 */}
-              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm animate-pulse"></div>
-            </div>
-
-            {/* 用户信息 */}
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-gray-900 truncate mb-0.5">
-                {displayName}
+    <>
+      <Dropdown
+        menu={{ items: userMenuItems }}
+        placement="topRight"
+        trigger={['click']}
+        arrow
+      >
+        <div className="relative cursor-pointer group">
+          {/* 主卡片 */}
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-4 shadow-lg border border-gray-100/50 hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
+            <div className="flex items-center gap-3">
+              {/* 头像 */}
+              <div className="relative flex-shrink-0">
+                <Avatar
+                  size={48}
+                  icon={<UserOutlined />}
+                  src={storeUserInfo.avatar}
+                  className="bg-gradient-to-br from-[#4040ff] to-[#764ba2] shadow-md ring-2 ring-white"
+                />
+                {/* 在线状态指示器 */}
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm animate-pulse"></div>
               </div>
-              <div className="text-xs text-gray-500 truncate flex items-center gap-1.5">
-                <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                <span className="truncate">{displayStatus}</span>
-              </div>
-            </div>
 
-            {/* 下拉指示器 */}
-            <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              {/* 用户信息 */}
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-gray-900 truncate mb-0.5">
+                  {displayName}
+                </div>
+                <div className="text-xs text-gray-500 truncate flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                  <span className="truncate">{displayStatus}</span>
+                </div>
+              </div>
+
+              {/* 下拉指示器 */}
+              <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </Dropdown>
+      </Dropdown>
+    </>
   );
 });
 

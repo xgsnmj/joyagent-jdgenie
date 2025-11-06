@@ -3,15 +3,20 @@ package com.jd.genie.agent.printer;
 import com.alibaba.fastjson.JSON;
 import com.jd.genie.agent.enums.AgentType;
 import com.jd.genie.agent.util.StringUtil;
+import com.jd.genie.handler.AgentResponseHandler;
+import com.jd.genie.model.multi.EventResult;
 import com.jd.genie.model.req.AgentRequest;
 import com.jd.genie.model.response.AgentResponse;
+import com.jd.genie.model.response.GptProcessResult;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -22,12 +27,22 @@ public class SSEPrinter implements Printer {
     private AgentRequest request;
     private Integer agentType;
     private com.jd.genie.agent.agent.AgentContext agentContext;  // 持有AgentContext引用
+    private AgentResponseHandler handler;  // Handler用于将AgentResponse转换为GptProcessResult
+    private EventResult eventResult;  // 事件结果累积器
+    private List<AgentResponse> agentRespList;  // AgentResponse列表
 
-    public SSEPrinter(SseEmitter emitter, AgentRequest request, Integer agentType, com.jd.genie.agent.agent.AgentContext agentContext) {
+    public SSEPrinter(SseEmitter emitter,
+                     AgentRequest request,
+                     Integer agentType,
+                     com.jd.genie.agent.agent.AgentContext agentContext,
+                     AgentResponseHandler handler) {
         this.emitter = emitter;
         this.request = request;
         this.agentType = agentType;
-        this.agentContext = agentContext;  // 保存引用
+        this.agentContext = agentContext;
+        this.handler = handler;
+        this.eventResult = new EventResult();
+        this.agentRespList = new ArrayList<>();
     }
 
     @Override
@@ -144,12 +159,16 @@ public class SSEPrinter implements Printer {
                     break;
             }
 
-            // 收集会话数据到dataCollector
+            // 先转换为 GptProcessResult
+            GptProcessResult result = handler.handle(request, response, agentRespList, eventResult);
+
+            // 收集 GptProcessResult 到 dataCollector
             if (agentContext != null && agentContext.getDataCollector() != null) {
-                agentContext.getDataCollector().collectMessage(response);
+                agentContext.getDataCollector().collectMessage(result);
             }
 
-            emitter.send(response);
+            // 发送 GptProcessResult（而不是 AgentResponse）
+            emitter.send(result);
 
         } catch (Exception e) {
             log.error("sse send error ", e);
