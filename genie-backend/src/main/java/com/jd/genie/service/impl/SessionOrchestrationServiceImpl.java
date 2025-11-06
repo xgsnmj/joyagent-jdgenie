@@ -100,7 +100,7 @@ public class SessionOrchestrationServiceImpl implements SessionOrchestrationServ
         if (agentProviderId != null) {
             log.debug("[编排服务] 使用指定的智能体 - providerId: {}", agentProviderId);
             AgentProvider provider = agentProviderService.getById(agentProviderId);
-            validateProvider(provider, agentProviderId, userId);
+//            validateProvider(provider, agentProviderId, userId);
             return provider;
         }
 

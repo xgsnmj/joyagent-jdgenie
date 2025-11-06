@@ -214,41 +214,41 @@ public class ExternalAgentExecutor implements AgentExecutor {
         SseEmitter targetEmitter = context.getEmitter();
 
         // 创建拦截器emitter，用于收集数据
-        InterceptableSseEmitter interceptorEmitter = new InterceptableSseEmitter(
-                30 * 60 * 1000L,
-                data -> {
-                    try {
-                        // 拦截到的数据：收集 + 转发
-                        String content = extractContentFromData(data);
-                        if (content != null && !content.isEmpty()) {
-                            dataCollector.collectRawContent(content);
-                        }
-
-                        // 转发给前端
-                        targetEmitter.send(data);
-
-                        log.debug("[外部执行器] SSE数据已拦截并转发 - sessionId: {}", context.getSessionId());
-                    } catch (Exception e) {
-                        log.error("[外部执行器] 拦截SSE数据失败 - sessionId: {}", context.getSessionId(), e);
-                    }
-                }
-        );
-
-        // 注册完成事件：保存AI回复
-        interceptorEmitter.onCompletion(() -> {
-            log.info("[外部执行器] SSE流完成，开始保存AI回复 - sessionId: {}", context.getSessionId());
-            saveAssistantReply(context, dataCollector);
-        });
-
-        // 注册错误事件：转发错误
-        interceptorEmitter.onError((ex) -> {
-            log.error("[外部执行器] SSE流错误 - sessionId: {}", context.getSessionId(), ex);
-            try {
-                targetEmitter.completeWithError(ex);
-            } catch (Exception e) {
-                log.error("[外部执行器] 转发错误失败", e);
-            }
-        });
+//        InterceptableSseEmitter interceptorEmitter = new InterceptableSseEmitter(
+//                30 * 60 * 1000L,
+//                data -> {
+//                    try {
+//                        // 拦截到的数据：收集 + 转发
+//                        String content = extractContentFromData(data);
+//                        if (content != null && !content.isEmpty()) {
+//                            dataCollector.collectRawContent(content);
+//                        }
+//
+//                        // 转发给前端
+//                        targetEmitter.send(data);
+//
+//                        log.debug("[外部执行器] SSE数据已拦截并转发 - sessionId: {}", context.getSessionId());
+//                    } catch (Exception e) {
+//                        log.error("[外部执行器] 拦截SSE数据失败 - sessionId: {}", context.getSessionId(), e);
+//                    }
+//                }
+//        );
+//
+//        // 注册完成事件：保存AI回复
+//        interceptorEmitter.onCompletion(() -> {
+//            log.info("[外部执行器] SSE流完成，开始保存AI回复 - sessionId: {}", context.getSessionId());
+//            saveAssistantReply(context, dataCollector);
+//        });
+//
+//        // 注册错误事件：转发错误
+//        interceptorEmitter.onError((ex) -> {
+//            log.error("[外部执行器] SSE流错误 - sessionId: {}", context.getSessionId(), ex);
+//            try {
+//                targetEmitter.completeWithError(ex);
+//            } catch (Exception e) {
+//                log.error("[外部执行器] 转发错误失败", e);
+//            }
+//        });
 
         // 发送请求（使用拦截器emitter）
         AgentAdapter.ChatResponse response = adapter.sendChatRequest(
@@ -259,7 +259,7 @@ public class ExternalAgentExecutor implements AgentExecutor {
                 provider.getApiKey(),
                 provider.getBotId(),
                 session != null ? session.getExternalSessionId() : null,
-                interceptorEmitter  // 传入拦截器emitter
+                targetEmitter  // 传入拦截器emitter
         );
 
         log.debug("[外部执行器] 请求已发送 - sessionId: {}", context.getSessionId());
