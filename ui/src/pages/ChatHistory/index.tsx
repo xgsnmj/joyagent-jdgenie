@@ -1,10 +1,14 @@
-import { useState, useEffect, memo } from 'react';
-import { Table, Button, Modal, message, Space, Typography, Tag } from 'antd';
-import { DeleteOutlined, EyeOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { getSessions, deleteSession, Session } from '@/api/chat';
-import dayjs from 'dayjs';
-import type { TablePaginationConfig } from 'antd';
+import { useState, useEffect, memo } from "react";
+import { Table, Button, Modal, message, Space, Typography, Tag } from "antd";
+import {
+  DeleteOutlined,
+  EyeOutlined,
+  ExclamationCircleOutlined,
+} from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import { getSessions, deleteSession, Session } from "@/api/chat";
+import dayjs from "dayjs";
+import type { TablePaginationConfig } from "antd";
 
 const { Title } = Typography;
 const { confirm } = Modal;
@@ -29,7 +33,7 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
   /**
    * 加载会话列表
    */
-  const loadSessions = async (page = 1, pageSize = 10) => {
+  const loadSessions = async (page = 1, pageSize = 50) => {
     try {
       setLoading(true);
       const response = await getSessions({
@@ -44,7 +48,7 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
         total: response.total,
       });
     } catch (error: any) {
-      message.error(error.message || '加载会话列表失败');
+      message.error(error.message || "加载会话列表失败");
     } finally {
       setLoading(false);
     }
@@ -77,20 +81,20 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
    */
   const handleDelete = (record: Session) => {
     confirm({
-      title: '确认删除',
+      title: "确认删除",
       icon: <ExclamationCircleOutlined />,
       content: `确定要删除会话"${record.title}"吗？此操作不可恢复。`,
-      okText: '确认',
-      okType: 'danger',
-      cancelText: '取消',
+      okText: "确认",
+      okType: "danger",
+      cancelText: "取消",
       onOk: async () => {
         try {
           await deleteSession(record.id);
-          message.success('删除成功');
+          message.success("删除成功");
           // 重新加载当前页
           loadSessions(pagination.current, pagination.pageSize);
         } catch (error: any) {
-          message.error(error.message || '删除失败');
+          message.error(error.message || "删除失败");
         }
       },
     });
@@ -101,44 +105,42 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
    */
   const columns = [
     {
-      title: '会话标题',
-      dataIndex: 'title',
-      key: 'title',
+      title: "会话标题",
+      dataIndex: "title",
+      key: "title",
       ellipsis: true,
-      width: '35%',
+      width: "35%",
       render: (text: string) => (
-        <span className="text-[#333] font-medium">{text || '未命名会话'}</span>
+        <span className="text-[#333] font-medium">{text || "未命名会话"}</span>
       ),
     },
     {
-      title: '消息数',
-      dataIndex: 'messageCount',
-      key: 'messageCount',
-      width: '10%',
-      align: 'center' as const,
-      render: (count: number) => (
-        <Tag color="blue">{count || 0}</Tag>
-      ),
+      title: "消息数",
+      dataIndex: "messageCount",
+      key: "messageCount",
+      width: "10%",
+      align: "center" as const,
+      render: (count: number) => <Tag color="blue">{count || 0}</Tag>,
     },
     {
-      title: '创建时间',
-      dataIndex: 'createTime',
-      key: 'createTime',
-      width: '20%',
-      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm:ss'),
+      title: "创建时间",
+      dataIndex: "createTime",
+      key: "createTime",
+      width: "20%",
+      render: (time: string) => dayjs(time).format("YYYY-MM-DD HH:mm:ss"),
     },
     {
-      title: '更新时间',
-      dataIndex: 'updateTime',
-      key: 'updateTime',
-      width: '20%',
-      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm:ss'),
+      title: "更新时间",
+      dataIndex: "updateTime",
+      key: "updateTime",
+      width: "20%",
+      render: (time: string) => dayjs(time).format("YYYY-MM-DD HH:mm:ss"),
     },
     {
-      title: '操作',
-      key: 'action',
-      width: '15%',
-      align: 'center' as const,
+      title: "操作",
+      key: "action",
+      width: "15%",
+      align: "center" as const,
       render: (_: any, record: Session) => (
         <Space size="small">
           <Button
@@ -167,14 +169,15 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
       <div className="max-w-7xl mx-auto">
         {/* 页面标题 */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
-          <Title level={3} className="!mb-2">
+          <Title
+            level={3}
+            className="!mb-2"
+          >
             <span className="bg-gradient-to-r from-[#4040ff] to-[#764ba2] bg-clip-text text-transparent">
               会话历史
             </span>
           </Title>
-          <p className="text-[#666] text-sm">
-            查看和管理您的所有对话会话
-          </p>
+          <p className="text-[#666] text-sm">查看和管理您的所有对话会话</p>
         </div>
 
         {/* 会话列表 */}
@@ -189,7 +192,7 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
               showSizeChanger: true,
               showQuickJumper: true,
               showTotal: (total) => `共 ${total} 条记录`,
-              pageSizeOptions: ['10', '20', '50', '100'],
+              pageSizeOptions: ["10", "20", "50", "100"],
             }}
             onChange={handleTableChange}
             className="chat-history-table"
@@ -221,6 +224,6 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
   );
 });
 
-ChatHistory.displayName = 'ChatHistory';
+ChatHistory.displayName = "ChatHistory";
 
 export default ChatHistory;

@@ -1,6 +1,13 @@
-import { create } from 'zustand';
-import { Session, Message, getSessions, createSession, deleteSession, getSessionMessages } from '@/api/chat';
-import { message } from 'antd';
+import { create } from "zustand";
+import {
+  Session,
+  Message,
+  getSessions,
+  createSession,
+  deleteSession,
+  getSessionMessages,
+} from "@/api/chat";
+import { message } from "antd";
 
 /**
  * 会话状态类型定义
@@ -106,14 +113,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   fetchSessions: async () => {
     try {
       set({ loading: true });
-      const response = await getSessions();
+      const response = await getSessions({
+        pageSize: 50,
+      });
       set({
         sessions: response.list || [],
-        loading: false
+        loading: false,
       });
     } catch (error: any) {
-      console.error('获取会话列表失败:', error);
-      message.error(error.message || '获取会话列表失败');
+      console.error("获取会话列表失败:", error);
+      message.error(error.message || "获取会话列表失败");
       set({ loading: false });
     }
   },
@@ -131,14 +140,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         sessions: [newSession, ...state.sessions],
         currentSessionId: newSession.sessionId,
         messages: [],
-        loading: false
+        loading: false,
       }));
 
-      message.success('新会话已创建');
+      message.success("新会话已创建");
       return newSession;
     } catch (error: any) {
-      console.error('创建会话失败:', error);
-      message.error(error.message || '创建会话失败');
+      console.error("创建会话失败:", error);
+      message.error(error.message || "创建会话失败");
       set({ loading: false });
       return null;
     }
@@ -154,7 +163,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       // 从列表中移除该会话
       set((state) => {
         const newSessions = state.sessions.filter(
-          (session) => session.id !== sessionId && session.sessionId !== sessionId
+          (session) =>
+            session.id !== sessionId && session.sessionId !== sessionId
         );
 
         // 如果删除的是当前会话，清空当前会话
@@ -164,14 +174,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         return {
           sessions: newSessions,
           currentSessionId: newCurrentSessionId,
-          messages: newCurrentSessionId ? state.messages : []
+          messages: newCurrentSessionId ? state.messages : [],
         };
       });
 
-      message.success('会话已删除');
+      message.success("会话已删除");
     } catch (error: any) {
-      console.error('删除会话失败:', error);
-      message.error(error.message || '删除会话失败');
+      console.error("删除会话失败:", error);
+      message.error(error.message || "删除会话失败");
     }
   },
 
@@ -181,7 +191,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
    * 该方法将在未来版本中移除
    */
   switchSession: async (sessionId: string) => {
-    console.warn('switchSession已废弃，推荐使用URL参数跳转: navigate(`/?sessionId=${sessionId}`)');
+    console.warn(
+      "switchSession已废弃，推荐使用URL参数跳转: navigate(`/?sessionId=${sessionId}`)"
+    );
     set({ currentSessionId: sessionId });
     await get().fetchMessages(sessionId);
   },
@@ -192,17 +204,19 @@ export const useSessionStore = create<SessionState>((set, get) => ({
    * 该方法将在未来版本中移除
    */
   fetchMessages: async (sessionId: string) => {
-    console.warn('fetchMessages已废弃，由Home组件通过loadHistorySession统一处理');
+    console.warn(
+      "fetchMessages已废弃，由Home组件通过loadHistorySession统一处理"
+    );
     try {
       set({ loading: true });
       const messages = await getSessionMessages(sessionId);
       set({
         messages,
-        loading: false
+        loading: false,
       });
     } catch (error: any) {
-      console.error('获取消息列表失败:', error);
-      message.error(error.message || '获取消息列表失败');
+      console.error("获取消息列表失败:", error);
+      message.error(error.message || "获取消息列表失败");
       set({ loading: false });
     }
   },
@@ -213,7 +227,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   clearCurrentSession: () => {
     set({
       currentSessionId: null,
-      messages: []
+      messages: [],
     });
   },
 
@@ -223,7 +237,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
    */
   addMessage: (message) => {
     set((state) => ({
-      messages: [...state.messages, message]
+      messages: [...state.messages, message],
     }));
-  }
+  },
 }));
