@@ -113,9 +113,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   fetchSessions: async () => {
     try {
       set({ loading: true });
-      const response = await getSessions({
-        pageSize: 50,
-      });
+      const response = await getSessions();
       set({
         sessions: response.list || [],
         loading: false,

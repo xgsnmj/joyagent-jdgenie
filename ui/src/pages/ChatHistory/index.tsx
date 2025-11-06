@@ -111,7 +111,9 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
       ellipsis: true,
       width: "35%",
       render: (text: string) => (
-        <span className="text-[#333] font-medium">{text || "未命名会话"}</span>
+        <span className="text-[#333] font-medium truncate">
+          {text || "未命名会话"}
+        </span>
       ),
     },
     {
@@ -120,7 +122,9 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
       key: "messageCount",
       width: "10%",
       align: "center" as const,
-      render: (count: number) => <Tag color="blue">{count || 0}</Tag>,
+      render: (count: number) => (
+        <Tag color="blue">{Math.floor((count || 0) / 2)}</Tag>
+      ),
     },
     {
       title: "创建时间",
@@ -166,7 +170,7 @@ const ChatHistory: GenieType.FC<ChatHistoryProps> = memo(() => {
 
   return (
     <div className="h-full p-6 bg-[#f5f5f5]">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         {/* 页面标题 */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
           <Title

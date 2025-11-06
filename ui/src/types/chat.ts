@@ -114,5 +114,18 @@ declare global {
         columnId: string;
       }[];
     };
+
+    export type Session = {
+      id: string | number; // 数据库主键
+      sessionId: string; // 业务唯一标识符（UUID）
+      title: string;
+      createTime: string;
+      updateTime: string;
+      messageCount?: number;
+      agentType?: string;
+      outputStyle?: string;
+      agentProviderId?: number; // 智能体配置ID（用于历史会话恢复智能体配置）
+      [key: string]: any;
+    };
   }
 }
