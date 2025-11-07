@@ -31,11 +31,7 @@ public class MultiAgentServiceImpl implements IMultiAgentService {
     @Autowired
     private GenieConfig genieConfig;
     @Autowired
-    private Map<AgentType, AgentResponseHandler> handlerMap;
-    @Autowired
     private SessionOrchestrationService sessionOrchestrationService;
-    @Autowired
-    private com.jd.genie.service.AgentProviderService agentProviderService;
 
     @Override
     public AutoBotsResult searchForAgentRequest(GptQueryReq gptQueryReq, SseEmitter sseEmitter) {

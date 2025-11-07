@@ -14,8 +14,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Input, Tabs, Empty, Spin, Badge, Tag, Button } from 'antd';
-import { SearchOutlined, SettingOutlined, FireOutlined } from '@ant-design/icons';
+import { Modal, Input, Empty, Spin, Badge, Tag, Button } from 'antd';
+import { SearchOutlined, SettingOutlined, FireOutlined, CheckOutlined } from '@ant-design/icons';
 import { AgentCard } from './AgentCard';
 import { useAgentCommunityStore } from '@/store/agentCommunity';
 import { useNavigate } from 'react-router-dom';
@@ -133,16 +133,38 @@ export const AgentCommunityModal: React.FC<AgentCommunityModalProps> = ({
         />
       </div>
 
-      {/* 分类标签 */}
-      <Tabs
-        activeKey={selectedCategory}
-        onChange={handleCategoryChange}
-        items={categories.map((cat) => ({
-          key: cat,
-          label: cat,
-        }))}
-        className="mb-4"
-      />
+      {/* 分类标签云 */}
+      <div className="mb-6">
+        <div className="text-sm text-gray-500 mb-3 flex items-center">
+          <span className="mr-2">🏷️</span>
+          <span>选择分类：</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {categories.map((cat) => (
+            <Tag
+              key={cat}
+              color={selectedCategory === cat ? 'blue' : undefined}
+              className={`
+                cursor-pointer transition-all duration-200 px-4 py-2 text-sm
+                ${selectedCategory === cat
+                  ? 'font-bold shadow-md scale-105'
+                  : 'hover:scale-105 hover:shadow-sm'
+                }
+              `}
+              style={{
+                borderRadius: '20px',
+                border: selectedCategory === cat ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                fontSize: '14px',
+                lineHeight: '24px',
+              }}
+              onClick={() => handleCategoryChange(cat)}
+              icon={selectedCategory === cat ? <CheckOutlined /> : undefined}
+            >
+              {cat}
+            </Tag>
+          ))}
+        </div>
+      </div>
 
       {/* 智能体卡片网格 */}
       <Spin spinning={loading}>

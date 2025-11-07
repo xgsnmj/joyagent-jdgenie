@@ -8,7 +8,15 @@
 
 import React from 'react';
 import { Card, Tag, Avatar, Badge } from 'antd';
-import { RobotOutlined, FireOutlined } from '@ant-design/icons';
+import {
+  RobotOutlined,
+  FireOutlined,
+  ApiOutlined,
+  CloudServerOutlined,
+  ThunderboltOutlined,
+  AppstoreOutlined,
+  QuestionCircleOutlined
+} from '@ant-design/icons';
 import type { AgentProvider } from '@/types/agentProvider';
 
 interface AgentCardProps {
@@ -27,6 +35,8 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick }) => {
     default: 'blue',
     coze: 'purple',
     ronghui: 'orange',
+    tongyi: 'geekblue',
+    dify: 'green',
   };
 
   // 平台类型显示名称
@@ -34,6 +44,20 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick }) => {
     default: '本地智能体',
     coze: 'Coze平台',
     ronghui: '融汇平台',
+    tongyi: '通义点金',
+    dify: 'Dify平台',
+  };
+
+  // 获取平台默认图标
+  const getPlatformIcon = (providerType: string) => {
+    const iconMap: Record<string, React.ReactNode> = {
+      default: <RobotOutlined />,
+      coze: <ApiOutlined />,
+      ronghui: <CloudServerOutlined />,
+      tongyi: <ThunderboltOutlined />,
+      dify: <AppstoreOutlined />,
+    };
+    return iconMap[providerType] || <QuestionCircleOutlined />;
   };
 
   return (
@@ -61,8 +85,9 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick }) => {
         <Avatar
           size={56}
           src={agent.icon}
-          icon={!agent.icon && <RobotOutlined />}
+          icon={!agent.icon && getPlatformIcon(agent.providerType)}
           className="mr-3"
+          style={!agent.icon ? { backgroundColor: platformColors[agent.providerType] || '#1890ff' } : undefined}
         />
         <div className="flex-1">
           <div className="text-lg font-semibold text-gray-800 truncate">
