@@ -1,4 +1,5 @@
 import { fetchEventSource, EventSourceMessage } from '@microsoft/fetch-event-source';
+import { convertStreamData } from './agentConverters';
 
 const customHost = SERVICE_BASE_URL || '';
 const DEFAULT_SSE_URL = `${customHost}/web/api/v1/gpt/queryAgentStreamIncr`;
@@ -76,12 +77,16 @@ export default (config: SSEConfig, url: string = DEFAULT_SSE_URL): SSEController
     signal: controller.signal, // 添加信号支持
     onmessage(event: EventSourceMessage) {
       if (event.data) {
-        try {
-          const parsedData = JSON.parse(event.data);
-          handleMessage(parsedData);
-        } catch (error) {
-          console.error('Error parsing SSE message:', error);
-          handleError(new Error('Failed to parse SSE message'));
+        // console.log('SSE 原始消息:', event.data, 'event:', event.event);
+        
+        // 使用统一的转换函数处理所有数据
+        const eventType = event.event || '';
+        const convertedData = convertStreamData(event.data, eventType);
+        
+        if (convertedData) {
+          handleMessage(convertedData);
+        } else {
+          console.warn('数据转换失败，跳过此消息');
         }
       }
     },

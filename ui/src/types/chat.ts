@@ -18,8 +18,23 @@ declare global {
         response?: string;
         taskStatus?: MESSAGE.MsgItem["taskStatus"];
         planList?: PlanItem[];
+        deepThink?: boolean;
       }
     >;
+
+    // 历史会话中的数据 大部分是字符串形式 在使用时 需要通过解析转换为正在的格式
+    export type HistoryMessage = {
+      content: string;
+      createTime: string;
+      files: TFile[];
+      metadata: MESSAGE.EventData[];
+      id: number;
+      plan?: MESSAGE.Plan;
+      role: "assistant" | "user";
+      sessionId: string;
+      tasks: Task[];
+      thought: string;
+    };
 
     type PlanItem = {
       name: string;
@@ -92,7 +107,25 @@ declare global {
     export type ModelInfo = {
       modelName: string;
       modelCode: string;
-      schemaList: { columnComment: string; columnName: string; dataType: string; columnId: string }[];
+      schemaList: {
+        columnComment: string;
+        columnName: string;
+        dataType: string;
+        columnId: string;
+      }[];
+    };
+
+    export type Session = {
+      id: string | number; // 数据库主键
+      sessionId: string; // 业务唯一标识符（UUID）
+      title: string;
+      createTime: string;
+      updateTime: string;
+      messageCount?: number;
+      agentType?: string;
+      outputStyle?: string;
+      agentProviderId?: number; // 智能体配置ID（用于历史会话恢复智能体配置）
+      [key: string]: any;
     };
   }
 }

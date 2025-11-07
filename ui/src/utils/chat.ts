@@ -69,7 +69,10 @@ function handleTaskMessage(
   if (!currentChat.multiAgent.tasks) {
     currentChat.multiAgent.tasks = [];
   }
-  const taskIndex = findTaskIndex(currentChat.multiAgent.tasks, eventData.taskId);
+  const taskIndex = findTaskIndex(
+    currentChat.multiAgent.tasks,
+    eventData.taskId
+  );
   if (eventData.resultMap?.messageType) {
     handleTaskMessageByType(eventData, currentChat, taskIndex);
   }
@@ -82,7 +85,11 @@ function handleTaskMessage(
  * @param messageId 消息ID
  * @returns 工具索引，如果未找到则返回-1
  */
-function findToolIndex(tasks: MESSAGE.Task[][], taskIndex: number, messageId: string | undefined): number {
+function findToolIndex(
+  tasks: MESSAGE.Task[][],
+  taskIndex: number,
+  messageId: string | undefined
+): number {
   if (taskIndex === -1) return -1;
 
   return tasks[taskIndex]?.findIndex(
@@ -133,10 +140,11 @@ function handleTaskMessageByType(
  * @param taskId 任务ID
  * @returns 任务索引，如果未找到则返回-1
  */
-function findTaskIndex(tasks: MESSAGE.Task[][], taskId: string | undefined): number {
-  return tasks.findIndex(
-    (item: MESSAGE.Task[]) => item[0]?.taskId === taskId
-  );
+function findTaskIndex(
+  tasks: MESSAGE.Task[][],
+  taskId: string | undefined
+): number {
+  return tasks.findIndex((item: MESSAGE.Task[]) => item[0]?.taskId === taskId);
 }
 
 /**
@@ -166,7 +174,7 @@ function handleToolThoughtMessage(
     return;
   }
 
-  updateToolThought(tasks[taskIndex][toolIndex], toolThought || '', isFinal);
+  updateToolThought(tasks[taskIndex][toolIndex], toolThought || "", isFinal);
 }
 
 /**
@@ -188,11 +196,15 @@ function createNewTask(taskId: string, resultMap: MESSAGE.Task): MESSAGE.Task {
  * @param newThought 新的思考内容
  * @param isFinal 是否为最终结果
  */
-function updateToolThought(tool: MESSAGE.Task, newThought: string, isFinal: boolean) {
+function updateToolThought(
+  tool: MESSAGE.Task,
+  newThought: string,
+  isFinal: boolean
+) {
   if (isFinal) {
     tool.toolThought = newThought;
   } else {
-    tool.toolThought = (tool.toolThought || '') + newThought;
+    tool.toolThought = (tool.toolThought || "") + newThought;
   }
 }
 
@@ -214,24 +226,23 @@ function handleContentMessage(
     if (toolIndex !== -1) {
       // 已完成
       if (eventData.resultMap.resultMap.isFinal) {
-        currentChat.multiAgent.tasks[taskIndex][toolIndex].resultMap =
-                    {
-                      ...eventData.resultMap.resultMap,
-                      codeOutput: eventData.resultMap.resultMap.data,
-                    };
+        currentChat.multiAgent.tasks[taskIndex][toolIndex].resultMap = {
+          ...eventData.resultMap.resultMap,
+          codeOutput: eventData.resultMap.resultMap.data,
+        };
       } else {
         // 进行中
-        currentChat.multiAgent.tasks[taskIndex][
-          toolIndex
-        ].resultMap.isFinal = false;
+        currentChat.multiAgent.tasks[taskIndex][toolIndex].resultMap.isFinal =
+          false;
 
         currentChat.multiAgent.tasks[taskIndex][
           toolIndex
-        ].resultMap.codeOutput +=
-                    eventData.resultMap.resultMap?.data || "";
+        ].resultMap.codeOutput += eventData.resultMap.resultMap?.data || "";
       }
     } else {
-      eventData.resultMap.resultMap = initializeResultMap(eventData.resultMap.resultMap);
+      eventData.resultMap.resultMap = initializeResultMap(
+        eventData.resultMap.resultMap
+      );
 
       // 添加tool
       currentChat.multiAgent.tasks[taskIndex].push({
@@ -240,8 +251,9 @@ function handleContentMessage(
       });
     }
   } else {
-
-    eventData.resultMap.resultMap = initializeResultMap(eventData.resultMap.resultMap);
+    eventData.resultMap.resultMap = initializeResultMap(
+      eventData.resultMap.resultMap
+    );
 
     // 添加任务及tool
     currentChat.multiAgent.tasks.push([
@@ -261,7 +273,7 @@ function handleContentMessage(
 export function initializeResultMap(originalResultMap: any) {
   return {
     ...originalResultMap,
-    codeOutput: originalResultMap.codeOutput || originalResultMap.data || '',
+    codeOutput: originalResultMap.codeOutput || originalResultMap.data || "",
     fileInfo: originalResultMap.fileInfo || [],
   };
 }
@@ -305,11 +317,11 @@ function updateExistingTool(
   if (resultMap.isFinal) {
     tool.resultMap = {
       ...resultMap,
-      codeOutput: resultMap.data
+      codeOutput: resultMap.data,
     };
   } else {
     tool.resultMap.isFinal = false;
-    tool.resultMap.codeOutput += resultMap.data || '';
+    tool.resultMap.codeOutput += resultMap.data || "";
   }
 }
 
@@ -432,7 +444,10 @@ function addNewTask(currentChat: CHAT.ChatItem, eventData: MESSAGE.EventData) {
 /**
  * 更新搜索结果
  */
-function updateSearchResult(target: MESSAGE.ResultMap, source?: MESSAGE.SearchResult) {
+function updateSearchResult(
+  target: MESSAGE.ResultMap,
+  source?: MESSAGE.SearchResult
+) {
   if (source?.query?.length) {
     target.searchResult!.query = source.query;
   }
@@ -451,7 +466,7 @@ function ensureSearchResult(resultMap: MESSAGE.ResultMap) {
   } else {
     resultMap.searchResult = {
       query: [],
-      docs: []
+      docs: [],
     };
   }
 }
@@ -459,7 +474,7 @@ function ensureSearchResult(resultMap: MESSAGE.ResultMap) {
 function handleNonStreamingMessage(
   eventData: MESSAGE.EventData,
   currentChat: CHAT.ChatItem,
-  taskIndex: number,
+  taskIndex: number
 ) {
   if (taskIndex !== -1) {
     currentChat.multiAgent.tasks[taskIndex].push({
@@ -474,7 +489,6 @@ function handleNonStreamingMessage(
       },
     ]);
   }
-
 }
 
 /**
@@ -516,19 +530,18 @@ export const handleTaskData = (
   let plan = fullPlan;
   const taskList: MESSAGE.Task[] = [];
 
-  const validTasks: MESSAGE.Task[][] = fullTasks?.filter(
-    (item: MESSAGE.Task[]) => item && item?.length > 0
-  ) ?? [];
+  const validTasks: MESSAGE.Task[][] =
+    fullTasks?.filter((item: MESSAGE.Task[]) => item && item?.length > 0) ?? [];
 
   const chatList: any = !deepThink
     ? [
-      [
-        {
-          hidden: false,
-          children: [],
-        },
-      ],
-    ]
+        [
+          {
+            hidden: false,
+            children: [],
+          },
+        ],
+      ]
     : Array.from({ length: validTasks?.length || 0 }, () => []);
 
   validTasks?.forEach((taskGroup, groupIndex) => {
@@ -568,7 +581,11 @@ export const handleTaskData = (
         chatList[groupIndex]?.at(-1)?.children.push(...processedInfo);
       }
 
-      if (TOOL_TYPES.includes(task?.messageType) && !isCodeOutputOnly && !isDeepSearchExtend) {
+      if (
+        TOOL_TYPES.includes(task?.messageType) &&
+        !isCodeOutputOnly &&
+        !isDeepSearchExtend
+      ) {
         taskList.push(...processedInfo);
       }
 
@@ -616,7 +633,7 @@ export const handleTaskData = (
  * @returns 处理后的任务信息数组
  */
 function processDeepSearchTask(task: any, baseId: string): any[] {
-  const showTypes = ['extend', 'search'];
+  const showTypes = ["extend", "search"];
   if (task.resultMap.messageType === "report") {
     return [
       {
@@ -627,20 +644,22 @@ function processDeepSearchTask(task: any, baseId: string): any[] {
   }
 
   if (showTypes.includes(task.resultMap.messageType!)) {
-    return task.resultMap.searchResult!.query.map((query: string, index: number) => {
-      const clonedTask = structuredClone({
-        ...task,
-        id: baseId.concat(String(index)),
-      });
+    return task.resultMap.searchResult!.query.map(
+      (query: string, index: number) => {
+        const clonedTask = structuredClone({
+          ...task,
+          id: baseId.concat(String(index)),
+        });
 
-      const searchResult = {
-        query: query,
-        docs: task.resultMap.searchResult?.docs?.[index] ?? [],
-      };
+        const searchResult = {
+          query: query,
+          docs: task.resultMap.searchResult?.docs?.[index] ?? [],
+        };
 
-      clonedTask.resultMap.searchResult = searchResult;
-      return clonedTask;
-    });
+        clonedTask.resultMap.searchResult = searchResult;
+        return clonedTask;
+      }
+    );
   }
 
   return [
@@ -668,13 +687,13 @@ export const buildAction = (task: CHAT.Task) => {
     KNOWLEDGE: "knowledge",
     DEEP_SEARCH: "deep_search",
     MARKDOWN: "markdown",
-    DATA_ANALYSIS: "data_analysis"
+    DATA_ANALYSIS: "data_analysis",
   };
 
   const TOOL_NAMES = {
     WEB_SEARCH: "web_search",
     INTERNAL_SEARCH: "internal_search",
-    CODE_INTERPRETER: "code_interpreter"
+    CODE_INTERPRETER: "code_interpreter",
   };
 
   switch (task.messageType) {
@@ -685,28 +704,28 @@ export const buildAction = (task: CHAT.Task) => {
       return {
         action: "正在执行代码",
         tool: "编辑器",
-        name: ""
+        name: "",
       };
 
     case MESSAGE_TYPES.HTML:
       return {
         action: "正在生成web页面",
         tool: "编辑器",
-        name: ""
+        name: "",
       };
 
     case MESSAGE_TYPES.PLAN_THOUGHT:
       return {
         action: "正在思考下一步计划",
         tool: "",
-        name: ""
+        name: "",
       };
 
     case MESSAGE_TYPES.PLAN:
       return {
         action: "更新任务列表",
         tool: "",
-        name: ""
+        name: "",
       };
 
     case MESSAGE_TYPES.FILE:
@@ -716,7 +735,7 @@ export const buildAction = (task: CHAT.Task) => {
       return {
         action: "正在调用知识库",
         tool: "文件编辑器",
-        name: "查询知识库"
+        name: "查询知识库",
       };
 
     case MESSAGE_TYPES.DEEP_SEARCH:
@@ -726,21 +745,21 @@ export const buildAction = (task: CHAT.Task) => {
       return {
         action: "正在生成报告",
         tool: "markdown",
-        name: ""
+        name: "",
       };
 
     case MESSAGE_TYPES.DATA_ANALYSIS:
       return {
         action: "正在分析数据",
         tool: "数据分析工具",
-        name: task.resultMap.task
+        name: task.resultMap.task,
       };
 
     default:
       return {
         action: "正在调用工具",
         tool: task?.messageType || "",
-        name: ""
+        name: "",
       };
   }
 
@@ -758,21 +777,21 @@ export const buildAction = (task: CHAT.Task) => {
         return {
           action: "正在搜索",
           tool: "网络查询",
-          name: task?.toolResult?.toolParam?.query || ""
+          name: task?.toolResult?.toolParam?.query || "",
         };
 
       case TOOL_NAMES.CODE_INTERPRETER:
         return {
           action: "正在执行代码",
           tool: "编辑器",
-          name: "执行代码"
+          name: "执行代码",
         };
 
       default:
         return {
           action: "正在调用工具",
           tool: toolName || "",
-          name: toolName || ""
+          name: toolName || "",
         };
     }
   }
@@ -787,7 +806,7 @@ export const buildAction = (task: CHAT.Task) => {
     return {
       action: task?.resultMap?.command || "",
       tool: "文件编辑器",
-      name: fileInfo?.fileName || ""
+      name: fileInfo?.fileName || "",
     };
   }
 
@@ -803,40 +822,40 @@ export const buildAction = (task: CHAT.Task) => {
       tool: "深度搜索",
       name: isReport
         ? task?.resultMap?.query || ""
-        : task?.resultMap?.searchResult?.query || ""
+        : task?.resultMap?.searchResult?.query || "",
     };
   }
 };
 
 export enum IconType {
-  PLAN = 'plan',
-  PLAN_THOUGHT = 'plan_thought',
-  TOOL_RESULT = 'tool_result',
-  BROWSER = 'browser',
-  FILE = 'file',
-  DEEP_SEARCH = 'deep_search',
-  CODE = 'code',
-  HTML = 'html',
+  PLAN = "plan",
+  PLAN_THOUGHT = "plan_thought",
+  TOOL_RESULT = "tool_result",
+  BROWSER = "browser",
+  FILE = "file",
+  DEEP_SEARCH = "deep_search",
+  CODE = "code",
+  HTML = "html",
 }
 
 /**
  * 图标映射表
  */
 const ICON_MAP: Record<IconType, string> = {
-  [IconType.PLAN]: 'icon-renwu',
-  [IconType.PLAN_THOUGHT]: 'icon-juli',
-  [IconType.TOOL_RESULT]: 'icon-tiaoshi',
-  [IconType.BROWSER]: 'icon-sousuo',
-  [IconType.FILE]: 'icon-bianji',
-  [IconType.DEEP_SEARCH]: 'icon-sousuo',
-  [IconType.CODE]: 'icon-daima',
-  [IconType.HTML]: 'icon-daima',
+  [IconType.PLAN]: "icon-renwu",
+  [IconType.PLAN_THOUGHT]: "icon-juli",
+  [IconType.TOOL_RESULT]: "icon-tiaoshi",
+  [IconType.BROWSER]: "icon-sousuo",
+  [IconType.FILE]: "icon-bianji",
+  [IconType.DEEP_SEARCH]: "icon-sousuo",
+  [IconType.CODE]: "icon-daima",
+  [IconType.HTML]: "icon-daima",
 };
 
 /**
  * 默认图标
  */
-const DEFAULT_ICON = 'icon-tiaoshi';
+const DEFAULT_ICON = "icon-tiaoshi";
 
 /**
  * 根据指定的类型获取对应的图标名称
@@ -862,4 +881,27 @@ export const buildAttachment = (fileList: CHAT.FileList[]) => {
     };
   });
   return result;
+};
+
+export const createChat = (
+  inputInfo: CHAT.TInputInfo,
+  sessionId: string,
+  requestId: string
+): CHAT.ChatItem => {
+  return {
+    query: inputInfo.message!,
+    files: inputInfo.files!,
+    responseType: "txt",
+    sessionId,
+    requestId,
+    loading: false,
+    forceStop: false,
+    tasks: [],
+    thought: "",
+    response: "",
+    taskStatus: 0,
+    tip: "",
+    multiAgent: { tasks: [] },
+    deepThink: inputInfo.deepThink,
+  };
 };

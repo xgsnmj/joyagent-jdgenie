@@ -108,7 +108,7 @@ const GeneralInput: GenieType.FC<Props> = (props) => {
 
   return (
     <div className={showBtn ? "rounded-[12px] bg-[linear-gradient(to_bottom_right,#4040ff,#ff49fd,#d763fc,#3cc4fa)] p-1" : ""}>
-      <div className="rounded-[12px] border border-[#E9E9F0] overflow-hidden p-[12px] bg-[#fff]">
+      <div className="rounded-[12px] border border-[#E9E9F0] p-[12px] bg-[#fff]">
         <div className="relative">
           <TextArea
             ref={textareaRef}
@@ -179,7 +179,7 @@ const GeneralInput: GenieType.FC<Props> = (props) => {
               />
             )}
 
-            <span className="text-[12px] text-gray-300 flex items-center">{enterTip}</span>
+            <span className="text-[12px] text-gray-300 flex items-center mx-6">{enterTip}</span>
 
             <Tooltip title="发送">
               <i

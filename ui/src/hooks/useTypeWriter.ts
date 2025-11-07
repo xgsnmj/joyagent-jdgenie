@@ -1,12 +1,12 @@
 import {useEffect, useState, useMemo} from 'react';
-import TypeWriterCore from './TypeWriterCore';
+import TypeWriterCore from './typeWriterCore';
 
-interface UseWriterOptions {
+interface UseTypeWriterOptions {
     maxStepSeconds?: number; // 将 maxStepSeconds 定义为可选的
 }
 
 export const useTypeWriter = (
-  {text, options}:{ text: string, options?: UseWriterOptions }
+  {text, options}:{ text: string, options?: UseTypeWriterOptions }
 ) => {
   const [typedText, setTypedText] = useState('');
 

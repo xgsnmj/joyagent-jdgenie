@@ -221,8 +221,8 @@ const Login: GenieType.FC<LoginProps> = memo(() => {
       <div className="login-card">
         {/* Logo和标题 */}
         <div className="login-header">
-          <h1 className="login-title">JD Genie</h1>
-          <p className="login-subtitle">智能数据助手</p>
+          <h1 className="login-title">华创证券智能问答助手</h1>
+          <p className="login-subtitle">专业智能数据助手</p>
         </div>
 
         {/* 登录/注册表单 */}

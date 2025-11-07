@@ -83,7 +83,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
       size={size}
       style={{ width: 200, ...style }}
       className={`custom-agent-selector ${className || ''}`}
-      suffixIcon={<RobotOutlined style={{ color: '#4040ff' }} />}
+      // suffixIcon={<RobotOutlined style={{ color: '#4040ff' }} />}
       placeholder="选择智能体"
       optionFilterProp="children"
       showSearch
