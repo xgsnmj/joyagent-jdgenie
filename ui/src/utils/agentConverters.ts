@@ -40,27 +40,25 @@ export interface CozeStreamData {
  * 通义千问流式输出数据结构
  */
 export interface TongyiStreamData {
-  threadId: string;
-  traceId: string;
   versionId: string;
+  modelId: string;
+  threadId: string;
+  replayId: string;
+  role: string;
+  roleDisplayName: string;
+  messageType: string;
+  contentGroup: string;
+  content: string;
+  fullContent: string | null;
+  jsonContent: any | null;
+  contentType: string;
+  extraInfo: any | null;
+  stop: boolean;
+  time: string;
   inputTokens: number;
   outputTokens: number;
-  response: {
-    choices: Array<{
-      finishReason: string;
-      index: number;
-      message: {
-        content: string;
-        role: string;
-        roleDisplayName: string;
-      };
-    }>;
-    created: number;
-    id: string;
-    modelId: string;
-    time: string;
-  };
-  functionCallResponses?: any[];
+  totalTokens: number;
+  workflowId: string | null;
 }
 
 /**
@@ -83,196 +81,265 @@ export interface AgentConverter<T = any> {
 }
 
 /**
+ * MESSAGE.Answer 构建参数
+ */
+interface AnswerBuilderParams {
+  response: string;
+  responseAll: string;
+  finished: boolean;
+  useTimes?: number;
+  useTokens?: number;
+  traceId?: string;
+  reqId?: string;
+  packageType?: 'data' | 'heartbeat';
+  // 可选的结构化数据
+  eventData?: {
+    messageTime: string;
+    messageId: string;
+    taskId: string;
+    requestId: string;
+    result: string;
+    isFinal: boolean;
+  };
+}
+
+/**
+ * 构建标准的 MESSAGE.Answer 对象
+ * 提取公共逻辑，减少重复代码
+ */
+function buildAnswer(params: AnswerBuilderParams): MESSAGE.Answer {
+  const {
+    response,
+    responseAll,
+    finished,
+    useTimes = 0,
+    useTokens = 0,
+    traceId = '',
+    reqId = '',
+    packageType = 'data',
+    eventData,
+  } = params;
+
+  const answer: MESSAGE.Answer = {
+    status: 'success',
+    response,
+    responseAll,
+    finished,
+    useTimes,
+    useTokens,
+    resultMap: {
+      steps: [],
+    },
+    responseType: 'text',
+    voiceUrl: '',
+    traceId,
+    reqId,
+    encrypted: false,
+    runningLog: '',
+    query: '',
+    messages: '',
+    packageType,
+    errorMsg: '',
+  };
+
+  // 如果提供了事件数据，添加到 resultMap 中
+  if (eventData) {
+    answer.resultMap.eventData = {
+      messageOrder: 0,
+      messageType: 'task',
+      resultMap: {
+        messageTime: eventData.messageTime,
+        messageType: 'result',
+        result: eventData.result,
+        isFinal: eventData.isFinal,
+        requestId: eventData.requestId,
+        messageId: eventData.messageId,
+        finish: eventData.isFinal,
+        id: eventData.messageId,
+        resultMap: {
+          steps: [],
+          taskSummary: eventData.result,
+        },
+      },
+      messageId: eventData.messageId,
+      taskId: eventData.taskId,
+      taskOrder: 0,
+    };
+  }
+
+  return answer;
+}
+
+/**
+ * 基础转换器抽象类
+ * 提供公共的累积内容管理功能
+ */
+abstract class BaseStreamConverter<T> implements AgentConverter<T> {
+  protected accumulatedContent = '';
+
+  abstract convert(data: T, event: string): MESSAGE.Answer;
+
+  /**
+   * 重置累积内容
+   */
+  reset(): void {
+    this.accumulatedContent = '';
+  }
+
+  /**
+   * 累积内容
+   */
+  protected accumulate(content: string): void {
+    this.accumulatedContent += content;
+  }
+
+  /**
+   * 创建增量消息响应
+   */
+  protected createIncrementalResponse(params: {
+    incrementalContent: string;
+    messageTime: string;
+    messageId: string;
+    taskId: string;
+    traceId: string;
+    reqId: string;
+    useTokens?: number;
+  }): MESSAGE.Answer {
+    return buildAnswer({
+      response: params.incrementalContent,
+      responseAll: this.accumulatedContent,
+      finished: false,
+      useTokens: params.useTokens,
+      traceId: params.traceId,
+      reqId: params.reqId,
+      packageType: 'data',
+      eventData: {
+        messageTime: params.messageTime,
+        messageId: params.messageId,
+        taskId: params.taskId,
+        requestId: params.reqId,
+        result: this.accumulatedContent,
+        isFinal: false,
+      },
+    });
+  }
+
+  /**
+   * 创建完成消息响应
+   */
+  protected createCompletedResponse(params: {
+    finalContent: string;
+    messageTime: string;
+    messageId: string;
+    taskId: string;
+    traceId: string;
+    reqId: string;
+    useTimes?: number;
+    useTokens?: number;
+  }): MESSAGE.Answer {
+    const result = buildAnswer({
+      response: params.finalContent,
+      responseAll: params.finalContent,
+      finished: true,
+      useTimes: params.useTimes,
+      useTokens: params.useTokens,
+      traceId: params.traceId,
+      reqId: params.reqId,
+      packageType: 'data',
+      eventData: {
+        messageTime: params.messageTime,
+        messageId: params.messageId,
+        taskId: params.taskId,
+        requestId: params.reqId,
+        result: params.finalContent,
+        isFinal: true,
+      },
+    });
+    
+    // 重置累积内容
+    this.reset();
+    return result;
+  }
+
+  /**
+   * 创建心跳包响应
+   */
+  protected createHeartbeatResponse(traceId?: string, reqId?: string): MESSAGE.Answer {
+    return buildAnswer({
+      response: '',
+      responseAll: this.accumulatedContent,
+      finished: false,
+      traceId,
+      reqId,
+      packageType: 'heartbeat',
+    });
+  }
+
+  /**
+   * 创建 done 事件响应
+   */
+  protected createDoneResponse(): MESSAGE.Answer {
+    const result = buildAnswer({
+      response: '',
+      responseAll: this.accumulatedContent,
+      finished: true,
+      packageType: 'heartbeat',
+    });
+    this.reset();
+    return result;
+  }
+}
+
+/**
  * Coze智能体转换器
  * 将Coze的流式输出转换为本地MESSAGE.Answer格式
  */
-class CozeConverter implements AgentConverter<CozeStreamData> {
-  // 用于累积content内容
-  private accumulatedContent = '';
-
+class CozeConverter extends BaseStreamConverter<CozeStreamData> {
   /**
    * 转换Coze流式输出为MESSAGE.Answer格式
    */
   convert(cozeData: CozeStreamData, event: string): MESSAGE.Answer {
     // conversation.message.delta事件 - 增量内容
     if (event === 'conversation.message.delta' && cozeData.type === 'answer') {
-      this.accumulatedContent += cozeData.content;
-      return {
-        status: 'success',
-        response: cozeData.content, // 增量内容
-        responseAll: this.accumulatedContent, // 累积的完整内容
-        finished: false,
-        useTimes: 0,
-        useTokens: 0,
-        resultMap: {
-          steps: [],
-          eventData: {
-            messageOrder: 0,
-            messageType: 'task',
-            resultMap: {
-              messageTime: new Date().toISOString(),
-              messageType: 'result', // 使用 result 类型，显示在正文
-              result: this.accumulatedContent, // 累积的完整内容
-              isFinal: false,
-              requestId: cozeData.chat_id,
-              messageId: cozeData.id,
-              finish: false,
-              id: cozeData.id,
-              resultMap: {
-                steps: [],
-                taskSummary: this.accumulatedContent, // 用于显示的内容
-              },
-            },
-            messageId: cozeData.id,
-            taskId: cozeData.conversation_id,
-            taskOrder: 0,
-          },
-        },
-        responseType: 'text',
-        voiceUrl: '',
+      this.accumulate(cozeData.content);
+      return this.createIncrementalResponse({
+        incrementalContent: cozeData.content,
+        messageTime: new Date().toISOString(),
+        messageId: cozeData.id,
+        taskId: cozeData.conversation_id,
         traceId: cozeData.conversation_id,
         reqId: cozeData.chat_id,
-        encrypted: false,
-        runningLog: '',
-        query: '',
-        messages: '',
-        packageType: 'data',
-        errorMsg: '',
-      };
+      });
     }
 
     // conversation.message.completed事件 - 完成消息
     if (event === 'conversation.message.completed' && cozeData.type === 'answer') {
-      this.accumulatedContent = cozeData.content; // 使用完整内容
-      return {
-        status: 'success',
-        response: cozeData.content,
-        responseAll: cozeData.content,
-        finished: true,
-        useTimes: cozeData.time_cost?.total_duration_ms || 0,
-        useTokens: 0,
-        resultMap: {
-          steps: [],
-          eventData: {
-            messageOrder: 0,
-            messageType: 'task',
-            resultMap: {
-              messageTime: new Date().toISOString(),
-              messageType: 'result',
-              result: this.accumulatedContent, // 完整内容
-              isFinal: true,
-              requestId: cozeData.chat_id,
-              messageId: cozeData.id,
-              finish: true,
-              id: cozeData.id,
-              resultMap: {
-                steps: [],
-                taskSummary: this.accumulatedContent,
-              },
-            },
-            messageId: cozeData.id,
-            taskId: cozeData.conversation_id,
-            taskOrder: 0,
-          },
-        },
-        responseType: 'text',
-        voiceUrl: '',
+      return this.createCompletedResponse({
+        finalContent: cozeData.content,
+        messageTime: new Date().toISOString(),
+        messageId: cozeData.id,
+        taskId: cozeData.conversation_id,
         traceId: cozeData.conversation_id,
         reqId: cozeData.chat_id,
-        encrypted: false,
-        runningLog: '',
-        query: '',
-        messages: '',
-        packageType: 'data',
-        errorMsg: '',
-      };
+        useTimes: cozeData.time_cost?.total_duration_ms || 0,
+      });
     }
 
     // conversation.chat.completed事件 - 会话完成
     if (event === 'conversation.chat.completed') {
-      const result = {
-        status: 'success',
-        response: '',
-        responseAll: this.accumulatedContent,
-        finished: true,
-        useTimes: cozeData.time_cost?.total_duration_ms || 0,
-        useTokens: 0,
-        resultMap: {
-          steps: [],
-        },
-        responseType: 'text',
-        voiceUrl: '',
-        traceId: cozeData.conversation_id,
-        reqId: cozeData.chat_id,
-        encrypted: false,
-        runningLog: '',
-        query: '',
-        messages: '',
-        packageType: 'data',
-        errorMsg: '',
-      };
-      // 重置累积内容
-      this.accumulatedContent = '';
-      return result;
+      return this.createDoneResponse();
     }
 
     // done事件
     if (event === 'done') {
-      const result = {
-        status: 'success',
-        response: '',
-        responseAll: this.accumulatedContent,
-        finished: true,
-        useTimes: 0,
-        useTokens: 0,
-        resultMap: {
-          steps: [],
-        },
-        responseType: 'text',
-        voiceUrl: '',
-        traceId: '',
-        reqId: '',
-        encrypted: false,
-        runningLog: '',
-        query: '',
-        messages: '',
-        packageType: 'data',
-        errorMsg: '',
-      };
-      // 重置累积内容
-      this.accumulatedContent = '';
-      return result;
+      return this.createDoneResponse();
     }
 
     // 其他类型的消息（follow_up、verbose等）暂时忽略，返回心跳包
-    return {
-      status: 'success',
-      response: '',
-      responseAll: this.accumulatedContent,
-      finished: false,
-      useTimes: 0,
-      useTokens: 0,
-      resultMap: {
-        steps: [],
-      },
-      responseType: 'text',
-      voiceUrl: '',
-      traceId: cozeData.conversation_id || '',
-      reqId: cozeData.chat_id || '',
-      encrypted: false,
-      runningLog: '',
-      query: '',
-      messages: '',
-      packageType: 'heartbeat', // 设置为心跳包，不会触发UI更新
-      errorMsg: '',
-    };
-  }
-
-  /**
-   * 重置转换器状态
-   */
-  reset() {
-    this.accumulatedContent = '';
+    return this.createHeartbeatResponse(
+      cozeData.conversation_id || '',
+      cozeData.chat_id || ''
+    );
   }
 }
 
@@ -280,112 +347,53 @@ class CozeConverter implements AgentConverter<CozeStreamData> {
  * 通义千问智能体转换器
  * 将通义千问的流式输出转换为本地MESSAGE.Answer格式
  */
-class TongyiConverter implements AgentConverter<TongyiStreamData> {
+class TongyiConverter extends BaseStreamConverter<TongyiStreamData> {
   /**
    * 转换通义千问流式输出为MESSAGE.Answer格式
    */
   convert(tongyiData: TongyiStreamData, event: string): MESSAGE.Answer {
-    // message 事件 - 通义千问直接返回完整消息
-    if (event === 'message') {
-      const choice = tongyiData.response?.choices?.[0];
-      const content = choice?.message?.content || '';
-      const isFinished = choice?.finishReason === 'stop';
-
-      return {
-        status: 'success',
-        response: content,
-        responseAll: content,
-        finished: isFinished,
-        useTimes: 0,
-        useTokens: tongyiData.outputTokens || 0,
-        resultMap: {
-          steps: [],
-          eventData: {
-            messageOrder: 0,
-            messageType: 'task',
-            resultMap: {
-              messageTime: new Date().toISOString(),
-              messageType: 'result',
-              result: content,
-              isFinal: isFinished,
-              requestId: tongyiData.response?.id,
-              messageId: tongyiData.response?.id,
-              finish: isFinished,
-              id: tongyiData.response?.id,
-              resultMap: {
-                steps: [],
-                taskSummary: content,
-              },
-            },
-            messageId: tongyiData.response?.id,
-            taskId: tongyiData.threadId,
-            taskOrder: 0,
-          },
-        },
-        responseType: 'text',
-        voiceUrl: '',
-        traceId: tongyiData.traceId,
-        reqId: tongyiData.response?.id,
-        encrypted: false,
-        runningLog: '',
-        query: '',
-        messages: '',
-        packageType: 'data',
-        errorMsg: '',
-      };
+    // data 事件（默认事件）或 message 事件 - 通义千问现在返回增量消息
+    // 根据 messageType 判断是否为回答消息
+    if ((event === '' || event === 'message' || event === 'data') && tongyiData.messageType === 'Answer') {
+      // 如果是增量内容（stop=false），累积内容
+      if (!tongyiData.stop) {
+        this.accumulate(tongyiData.content);
+        return this.createIncrementalResponse({
+          incrementalContent: tongyiData.content,
+          messageTime: tongyiData.time,
+          messageId: tongyiData.replayId,
+          taskId: tongyiData.threadId,
+          traceId: tongyiData.threadId,
+          reqId: tongyiData.replayId,
+          useTokens: tongyiData.outputTokens || 0,
+        });
+      } 
+      // 如果stop=true，表示这是最后一条消息
+      else {
+        // 使用fullContent作为完整内容（如果有的话）
+        const finalContent = tongyiData.fullContent || this.accumulatedContent;
+        return this.createCompletedResponse({
+          finalContent,
+          messageTime: tongyiData.time,
+          messageId: tongyiData.replayId,
+          taskId: tongyiData.threadId,
+          traceId: tongyiData.threadId,
+          reqId: tongyiData.replayId,
+          useTokens: tongyiData.outputTokens || 0,
+        });
+      }
     }
 
     // done 事件
     if (event === 'done') {
-      return {
-        status: 'success',
-        response: '',
-        responseAll: '',
-        finished: true,
-        useTimes: 0,
-        useTokens: 0,
-        resultMap: {
-          steps: [],
-        },
-        responseType: 'text',
-        voiceUrl: '',
-        traceId: '',
-        reqId: '',
-        encrypted: false,
-        runningLog: '',
-        query: '',
-        messages: '',
-        packageType: 'heartbeat',
-        errorMsg: '',
-      };
+      return this.createDoneResponse();
     }
 
     // 其他类型返回心跳包
-    return {
-      status: 'success',
-      response: '',
-      responseAll: '',
-      finished: false,
-      useTimes: 0,
-      useTokens: 0,
-      resultMap: {
-        steps: [],
-      },
-      responseType: 'text',
-      voiceUrl: '',
-      traceId: tongyiData.traceId || '',
-      reqId: tongyiData.response?.id || '',
-      encrypted: false,
-      runningLog: '',
-      query: '',
-      messages: '',
-      packageType: 'heartbeat',
-      errorMsg: '',
-    };
-  }
-
-  reset() {
-    // 通义千问不需要累积状态，每次都是完整消息
+    return this.createHeartbeatResponse(
+      tongyiData.threadId || '',
+      tongyiData.replayId || ''
+    );
   }
 }
 
