@@ -14,6 +14,11 @@ import demo4 from "@/assets/icon/demo4.png";
 
 import { ActionViewItemEnum } from "./enums";
 
+/**
+ * 智能体名称常量
+ */
+export const AGENT_NAME = "华创智能问答助手";
+
 export const iconType: Record<string, string> = {
   doc: docxIcon,
   docx: docxIcon,
@@ -54,28 +59,28 @@ export const productList = [
     name: "文档模式",
     img: "icon-wendang",
     type: "docs",
-    placeholder: "Genie会完成你的任务并以markdown格式输出文档",
+    placeholder: `${AGENT_NAME}会完成你的任务并以markdown格式输出文档`,
     color: "text-[#4040FF]",
   },
   {
     name: "网页模式",
     img: "icon-diannao",
     type: "html",
-    placeholder: "Genie会完成你的任务并以HTML网页方式输出报告",
+    placeholder: `${AGENT_NAME}会完成你的任务并以HTML网页方式输出报告`,
     color: "text-[#29CC29]",
   },
   {
     name: "PPT模式",
     img: "icon-ppt",
     type: "ppt",
-    placeholder: "Genie会完成你的任务并以PPT方式输出结论",
+    placeholder: `${AGENT_NAME}会完成你的任务并以PPT方式输出结论`,
     color: "text-[#FF860D]",
   },
   {
     name: "表格模式",
     img: "icon-biaoge",
     type: "table",
-    placeholder: "Genie会完成你的任务并以表格格式输出结论",
+    placeholder: `${AGENT_NAME}会完成你的任务并以表格格式输出结论`,
     color: "text-[#FF3333]",
   },
 ];

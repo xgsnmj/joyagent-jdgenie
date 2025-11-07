@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { AGENT_NAME } from '@/utils/constants';
 
 /**
  * Logo区域组件
@@ -16,11 +17,11 @@ const LogoSection: GenieType.FC = memo(() => {
 
       {/* 应用标题 */}
       <h1 className="text-3xl font-black bg-gradient-to-r from-[#4040ff] via-[#5050ff] to-[#764ba2] bg-clip-text text-transparent tracking-tight leading-tight">
-        JD Genie
+        {AGENT_NAME}
       </h1>
 
       {/* 副标题 */}
-      <p className="text-sm text-gray-600 mt-1.5 font-semibold">智能问答助手</p>
+      <p className="text-sm text-gray-600 mt-1.5 font-semibold">专业智能助手</p>
     </div>
   );
 });

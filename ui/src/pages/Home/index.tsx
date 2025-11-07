@@ -286,21 +286,17 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
     <div className="h-full flex flex-col items-center justify-center relative">
       {/* 右上角智能体社区按钮 */}
       <Button
-        icon={<AppstoreOutlined className="text-3xl" />}
-        size="large"
+        icon={<AppstoreOutlined />}
         onClick={() => setCommunityModalVisible(true)}
-        className="absolute top-10 right-10 z-50 group rounded-2xl h-16 px-7 py-4 font-bold text-base overflow-hidden transition-all duration-500 ease-out bg-gradient-to-br from-[#4040ff] via-[#5858ff] to-[#764ba2] text-white shadow-2xl shadow-[#4040ff]/40 hover:shadow-[0_0_40px_rgba(64,64,255,0.6)] hover:scale-110 hover:rotate-1 cursor-pointer backdrop-blur-sm border border-white/20"
+        className="absolute top-18 right-18 z-50 group rounded-xl h-24 px-8 overflow-hidden transition-all duration-300 ease-out bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] hover:from-[#4f46e5] hover:to-[#7c3aed] text-white shadow-lg hover:shadow-xl hover:scale-105 border-0 flex items-center justify-center gap-2.5 font-medium text-base"
         style={{
-          boxShadow:
-            "0 8px 32px rgba(64, 64, 255, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1) inset",
+          boxShadow: "0 4px 14px 0 rgba(99, 102, 241, 0.4)",
+          lineHeight: "1",
         }}
       >
-        <span className="relative z-10 font-black flex items-center gap-2 drop-shadow-md">
-          <span className="inline-block animate-pulse">✨</span>
+        <span className="relative z-10 flex items-center justify-center gap-2.5">
           智能体社区
         </span>
-        {/* 光效动画 */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
       </Button>
 
       {/* 主内容区域 */}

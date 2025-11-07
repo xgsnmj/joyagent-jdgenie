@@ -11,7 +11,7 @@ import Dialogue from "@/components/Dialogue";
 import DataDialogue from "@/components/Dialogue/DataDialogue";
 import GeneralInput from "@/components/GeneralInput";
 import ActionView from "@/components/ActionView";
-import { RESULT_TYPES } from "@/utils/constants";
+import { RESULT_TYPES, AGENT_NAME } from "@/utils/constants";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 import Logo from "../Logo";
@@ -480,7 +480,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
 
           <GeneralInput
             placeholder={
-              loading ? "任务进行中" : "希望 Genie 为你做哪些任务呢？"
+              loading ? "任务进行中" : `希望 ${AGENT_NAME} 为你做哪些任务呢？`
             }
             showBtn={currentProvider?.providerType === "default"} // 只有默认智能体显示深度研究
             size="medium"
@@ -546,7 +546,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
           })}
         </div>
         <GeneralInput
-          placeholder={loading ? "任务进行中" : "希望 Genie 为你做哪些任务呢？"}
+          placeholder={loading ? "任务进行中" : `希望 ${AGENT_NAME} 为你做哪些任务呢？`}
           showBtn={false}
           size="medium"
           disabled={loading}
