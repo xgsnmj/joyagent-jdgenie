@@ -37,6 +37,33 @@ export interface CozeStreamData {
 }
 
 /**
+ * 通义千问流式输出数据结构
+ */
+export interface TongyiStreamData {
+  threadId: string;
+  traceId: string;
+  versionId: string;
+  inputTokens: number;
+  outputTokens: number;
+  response: {
+    choices: Array<{
+      finishReason: string;
+      index: number;
+      message: {
+        content: string;
+        role: string;
+        roleDisplayName: string;
+      };
+    }>;
+    created: number;
+    id: string;
+    modelId: string;
+    time: string;
+  };
+  functionCallResponses?: any[];
+}
+
+/**
  * 智能体转换器接口
  * 所有智能体转换器都需要实现这个接口
  */
@@ -250,6 +277,119 @@ class CozeConverter implements AgentConverter<CozeStreamData> {
 }
 
 /**
+ * 通义千问智能体转换器
+ * 将通义千问的流式输出转换为本地MESSAGE.Answer格式
+ */
+class TongyiConverter implements AgentConverter<TongyiStreamData> {
+  /**
+   * 转换通义千问流式输出为MESSAGE.Answer格式
+   */
+  convert(tongyiData: TongyiStreamData, event: string): MESSAGE.Answer {
+    // message 事件 - 通义千问直接返回完整消息
+    if (event === 'message') {
+      const choice = tongyiData.response?.choices?.[0];
+      const content = choice?.message?.content || '';
+      const isFinished = choice?.finishReason === 'stop';
+
+      return {
+        status: 'success',
+        response: content,
+        responseAll: content,
+        finished: isFinished,
+        useTimes: 0,
+        useTokens: tongyiData.outputTokens || 0,
+        resultMap: {
+          steps: [],
+          eventData: {
+            messageOrder: 0,
+            messageType: 'task',
+            resultMap: {
+              messageTime: new Date().toISOString(),
+              messageType: 'result',
+              result: content,
+              isFinal: isFinished,
+              requestId: tongyiData.response?.id,
+              messageId: tongyiData.response?.id,
+              finish: isFinished,
+              id: tongyiData.response?.id,
+              resultMap: {
+                steps: [],
+                taskSummary: content,
+              },
+            },
+            messageId: tongyiData.response?.id,
+            taskId: tongyiData.threadId,
+            taskOrder: 0,
+          },
+        },
+        responseType: 'text',
+        voiceUrl: '',
+        traceId: tongyiData.traceId,
+        reqId: tongyiData.response?.id,
+        encrypted: false,
+        runningLog: '',
+        query: '',
+        messages: '',
+        packageType: 'data',
+        errorMsg: '',
+      };
+    }
+
+    // done 事件
+    if (event === 'done') {
+      return {
+        status: 'success',
+        response: '',
+        responseAll: '',
+        finished: true,
+        useTimes: 0,
+        useTokens: 0,
+        resultMap: {
+          steps: [],
+        },
+        responseType: 'text',
+        voiceUrl: '',
+        traceId: '',
+        reqId: '',
+        encrypted: false,
+        runningLog: '',
+        query: '',
+        messages: '',
+        packageType: 'heartbeat',
+        errorMsg: '',
+      };
+    }
+
+    // 其他类型返回心跳包
+    return {
+      status: 'success',
+      response: '',
+      responseAll: '',
+      finished: false,
+      useTimes: 0,
+      useTokens: 0,
+      resultMap: {
+        steps: [],
+      },
+      responseType: 'text',
+      voiceUrl: '',
+      traceId: tongyiData.traceId || '',
+      reqId: tongyiData.response?.id || '',
+      encrypted: false,
+      runningLog: '',
+      query: '',
+      messages: '',
+      packageType: 'heartbeat',
+      errorMsg: '',
+    };
+  }
+
+  reset() {
+    // 通义千问不需要累积状态，每次都是完整消息
+  }
+}
+
+/**
  * 智能体转换器工厂
  * 根据智能体类型返回对应的转换器实例
  */
@@ -259,6 +399,8 @@ class AgentConverterFactory {
   constructor() {
     // 注册 Coze 转换器
     this.converters.set('coze', new CozeConverter());
+    // 注册通义千问转换器
+    this.converters.set('tongyi', new TongyiConverter());
   }
 
   /**
