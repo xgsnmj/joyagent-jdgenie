@@ -227,7 +227,7 @@ const ConclusionSection: FC<{
     "任务已完成";
   return (
     <div className="mb-[8px]">
-      <div className="mb-[8px]">
+      <div className="mb-[8px] rounded-[12px] bg-[#F9FAFB] border border-[#E5E7EB] px-16 py-12">
         <MarkdownRenderer markDownContent={summary} />
       </div>
       <AttachmentList

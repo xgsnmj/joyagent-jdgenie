@@ -73,8 +73,8 @@ const ChatView: GenieType.FC<Props> = (props) => {
   // SSE连接控制器，用于中断连接
   const sseControllerRef = useRef<SSEController | null>(null);
 
-  // 获取会话store中的setIsStreaming和addMessage方法，用于同步流式输出状态和消息
-  const { setIsStreaming, addMessage } = useSessionStore();
+  // 获取会话store中的setIsStreaming、addMessage和fetchSessions方法，用于同步流式输出状态和消息
+  const { setIsStreaming, addMessage, fetchSessions } = useSessionStore();
 
   // 智能体状态管理
   const { providers, currentProvider, setCurrentProvider, fetchProviders } =
@@ -179,7 +179,8 @@ const ChatView: GenieType.FC<Props> = (props) => {
     const requestId = getUniqId();
     let currentChat = createChat(inputInfo, sessionId, requestId);
     currentChat.loading = true;
-    currentChat.tip = "已接收到你的任务，将立即开始处理...";
+    // currentChat.tip = "已接收到你的任务，将立即开始处理...";
+    currentChat.tip = "";
     chatList.current = [...chatList.current, currentChat];
     if (!chatTitle) {
       setChatTitle(message!);
@@ -240,6 +241,8 @@ const ChatView: GenieType.FC<Props> = (props) => {
               currentChat.loading = false;
               setLoading(false);
               setIsStreaming(false); // 同步流式输出状态
+              // 刷新左侧历史对话列表
+              fetchSessions();
             }
             const newChatList = [...chatList.current];
             newChatList.splice(newChatList.length - 1, 1, currentChat);
@@ -296,6 +299,9 @@ const ChatView: GenieType.FC<Props> = (props) => {
       sseControllerRef.current.abort();
       sseControllerRef.current = null;
     }
+
+    // 刷新左侧历史对话列表
+    fetchSessions();
 
     console.log("已停止生成");
   };
@@ -366,11 +372,15 @@ const ChatView: GenieType.FC<Props> = (props) => {
           currentChat.loading = false;
           setLoading(false);
           setIsStreaming(false); // 同步流式输出状态
+          // 刷新左侧历史对话列表
+          fetchSessions();
           break;
         case "READY":
           currentChat.loading = false;
           setLoading(false);
           setIsStreaming(false); // 同步流式输出状态
+          // 刷新左侧历史对话列表
+          fetchSessions();
           break;
       }
       const newChatList = [...dataChatList];
