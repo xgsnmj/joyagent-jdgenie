@@ -176,6 +176,42 @@
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
+        <!-- 阿里云通义点金SDK -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>dianjin20240628</artifactId>
+            <version>1.16.0</version>
+        </dependency>
+        <!-- 阿里云Gateway POP SDK（用于SSE流式调用） -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>aliyun-gateway-pop</artifactId>
+            <version>0.2.15-beta</version>
+        </dependency>
+        <!-- Tea OpenAPI SDK（必需） -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>tea-openapi</artifactId>
+            <version>0.2.8</version>
+        </dependency>
+        <!-- 阿里云凭据SDK（必需） -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>credentials-java</artifactId>
+            <version>1.0.2</version>
+        </dependency>
+        <!-- Tea工具包（必需） -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>tea-util</artifactId>
+            <version>0.2.23</version>
+        </dependency>
+        <!-- Tea核心库（必需） -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>tea</artifactId>
+            <version>1.1.14</version>
+        </dependency>
 
         <!-- JWT -->
         <dependency>

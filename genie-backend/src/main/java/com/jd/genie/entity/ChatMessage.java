@@ -47,7 +47,7 @@ public class ChatMessage implements Serializable {
      * 标识消息来自哪个平台，便于前端渲染和调试
      * - default: 本地MultiAgent体系
      * - coze: Coze智能体平台
-     * - ronghui: 融汇（阿里点金）智能体平台
+     * - ronghui: 融汇智能体平台
      */
     private String messageFormat;
 

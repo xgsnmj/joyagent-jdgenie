@@ -552,6 +552,11 @@ VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi',
 | api_endpoint | VARCHAR | 500 | YES | NULL | NO | NO | API请求地址（default类型为空）|
 | api_key | VARCHAR | 500 | YES | NULL | NO | NO | API密钥（明文存储）|
 | bot_id | VARCHAR | 100 | YES | NULL | NO | NO | Coze平台的Bot ID（仅coze类型必填）|
+| workspace_id | VARCHAR | 50 | YES | NULL | NO | NO | 通义点金的工作空间ID（仅tongyi类型使用）|
+| tenant_id | VARCHAR | 50 | YES | NULL | NO | NO | 租户ID（仅ronghui类型使用）|
+| login_user_id | VARCHAR | 50 | YES | NULL | NO | NO | 登录用户ID（仅ronghui类型使用）|
+| login_dept_id | VARCHAR | 50 | YES | NULL | NO | NO | 登录部门ID（仅ronghui类型使用）|
+| login_username | VARCHAR | 100 | YES | NULL | NO | NO | 登录用户名（仅ronghui类型使用）|
 | is_default | TINYINT | - | YES | 0 | NO | NO | 是否为该用户的默认智能体 |
 | status | TINYINT | - | YES | 1 | NO | NO | 状态：0-禁用 1-启用 |
 | extra_config | JSON | - | YES | NULL | NO | NO | 额外配置（平台特有参数）|
@@ -570,11 +575,16 @@ VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi',
 CREATE TABLE `agent_provider` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `user_id` BIGINT NOT NULL COMMENT '所属用户ID',
-  `provider_type` VARCHAR(50) NOT NULL COMMENT '平台类型: default/coze/ronghui',
+  `provider_type` VARCHAR(50) NOT NULL COMMENT '平台类型: default/coze/ronghui/tongyi/dify',
   `provider_name` VARCHAR(10) NOT NULL COMMENT '应用名称（最多10个字）',
   `api_endpoint` VARCHAR(500) COMMENT 'API请求地址（default类型为空）',
   `api_key` VARCHAR(500) COMMENT 'API密钥（明文存储，default类型为空）',
   `bot_id` VARCHAR(100) COMMENT 'Coze平台的Bot ID（仅coze类型必填）',
+  `workspace_id` VARCHAR(50) COMMENT '通义点金的工作空间ID（仅tongyi类型使用）',
+  `tenant_id` VARCHAR(50) COMMENT '租户ID（仅ronghui类型使用）',
+  `login_user_id` VARCHAR(50) COMMENT '登录用户ID（仅ronghui类型使用）',
+  `login_dept_id` VARCHAR(50) COMMENT '登录部门ID（仅ronghui类型使用）',
+  `login_username` VARCHAR(100) COMMENT '登录用户名（仅ronghui类型使用）',
   `is_default` TINYINT(1) DEFAULT 0 COMMENT '是否为该用户的默认智能体（0-否 1-是）',
   `status` TINYINT(1) DEFAULT 1 COMMENT '状态（0-禁用 1-启用）',
   `extra_config` JSON COMMENT '额外配置（JSON格式，存储平台特有参数）',
@@ -598,7 +608,9 @@ CREATE TABLE `agent_provider` (
 **支持的平台类型**:
 - `default`: 本地MultiAgent体系（系统内置）
 - `coze`: Coze智能体平台（需要配置bot_id）
-- `ronghui`: 融汇（阿里点金）智能体平台
+- `ronghui`: 融汇智能体平台（待完善实现）
+- `tongyi`: 通义点金智能体平台（已实现）
+- `dify`: Dify开源LLM应用平台（待实现）
 
 ---
 
@@ -825,3 +837,91 @@ DELIMITER ;
   - 保留 `user_id` 字段用于向后兼容
   - 旧数据自动迁移 `creator_id`
   - 前端支持新旧字段的fallback处理
+
+### 2025-01-06（新增智能体平台支持 - 框架搭建）
+- **平台类型扩展**：
+  - 新增 `tongyi`（通义点金）平台类型支持
+  - 新增 `dify`（Dify）平台类型支持
+  - 完善 `ronghui`（融汇）平台注释
+- **前端更新**：
+  - 扩展 `ProviderType` 类型定义：`'default' | 'coze' | 'ronghui' | 'tongyi' | 'dify'`
+  - 更新平台选择下拉框选项（PROVIDER_TYPE_OPTIONS）
+  - 更新平台类型标签映射（PROVIDER_TYPE_LABELS）
+  - 前端表单AgentForm自动显示新平台选项（无需修改组件代码）
+- **后端更新**：
+  - 创建 `TongyiAgentAdapter` 适配器框架（待实现具体API调用）
+  - 创建 `DifyAgentAdapter` 适配器框架（待实现具体API调用）
+  - 完善 `RonghuiAgentAdapter` 适配器注释（明确待实现部分）
+  - 更新实体类和DTO的平台类型验证规则
+  - 工厂模式自动注册新适配器（无需修改工厂代码）
+- **适配器框架特性**：
+  - 完整的类结构和方法签名
+  - 暂时返回"待实现"错误提示
+  - 所有TODO标记位置需要根据API文档补充实现
+  - Spring自动注册机制确保新适配器生效
+- **数据库schema更新**：
+  - 更新 `provider_type` 字段注释：支持5个平台类型
+  - 更新支持的平台类型列表和说明
+  - 添加框架搭建变更记录
+- **注意事项**：
+  - 通义点金适配器已完成实现（基于API文档）
+  - Dify平台的具体API调用逻辑待提供API文档后实现
+  - 融汇平台的完善实现待提供API文档后补充
+
+### 2025-01-06（通义点金适配器完整实现）
+- **通义点金适配器完成实现**：
+  - 完整实现 `TongyiAgentAdapter` 的所有核心方法
+  - 支持SSE流式响应和非流式响应
+  - 支持多轮对话（threadId管理）
+  - 支持工作空间ID和Bot ID参数
+  - 完整的错误处理和日志记录
+- **前端表单扩展**：
+  - 新增 `workspaceId` 字段支持（TypeScript类型定义）
+  - 通义点金平台自动显示工作空间ID输入字段
+  - Bot ID字段支持多个平台（Coze和通义点金）
+- **后端实体和DTO扩展**：
+  - `AgentProvider` 实体类新增 `workspaceId` 字段
+  - `AgentProviderRequest` DTO新增 `workspaceId` 字段和验证规则
+- **数据库Schema更新**：
+  - `agent_provider` 表新增 `workspace_id` 字段（VARCHAR(50)）
+  - 更新平台类型说明，标记通义点金为"已实现"
+- **技术特性**：
+  - **API调用**: `https://dianjin.aliyun.com/{workspaceId}/api/bot/thread/run`
+  - **请求格式**: `{"botId": "...", "userContent": "...", "stream": true}`
+  - **响应格式**: 支持 `success/data/response/threadId` 字段结构
+  - **SSE事件**: 支持 `message/error/session_id/done` 事件类型
+- **会话管理**：
+  - 外部会话ID格式：`workspaceId:threadId`
+  - 通过 `session_id` 事件将新的threadId传递给前端
+  - 支持多轮对话的上下文保持
+- **参数验证**：
+  - workspaceId：必填，最大50字符
+  - botId：必填，最大50字符
+  - apiKey：必填，用于Bearer Token认证
+
+### 2025-11-07（融汇平台适配器字段支持）
+- **数据库Schema更新**：
+  - `agent_provider` 表新增4个融汇平台专用字段：
+    - `tenant_id` (VARCHAR 50): 租户ID
+    - `login_user_id` (VARCHAR 50): 登录用户ID
+    - `login_dept_id` (VARCHAR 50): 登录部门ID
+    - `login_username` (VARCHAR 100): 登录用户名
+  - 所有字段可为NULL，仅融汇平台类型使用
+- **技术特性**：
+  - **API地址**: `https://qagent.rxhui.com/gateway/qagentService/chat`
+  - **认证方式**: Bearer Token（通过apiKey传入）
+  - **必需Headers**: tenantid, login-userid, login-deptid, login-username
+  - **请求格式**: `{"app_id": "...", "question": "...", "session_id": "...", "group_id": "...", "stream": true}`
+  - **响应格式**: SSE流式响应，支持复杂的action类型（roger/intermediate/reply/finish/error/region_begin/region_finish）
+- **会话管理**：
+  - 外部会话ID格式：`session_id:group_id`
+  - 首次调用后从响应中提取session_id和group_id
+  - 多轮对话需要同时携带session_id和group_id
+- **参数映射**：
+  - `botId` → `app_id`（应用ID）
+  - `apiKey` → Bearer Token
+  - `apiEndpoint` → 融汇API地址
+  - `tenantId` → Header: tenantid
+  - `loginUserId` → Header: login-userid
+  - `loginDeptId` → Header: login-deptid
+  - `loginUsername` → Header: login-username

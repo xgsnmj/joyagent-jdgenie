@@ -1,5 +1,6 @@
 package com.jd.genie.adapter;
 
+import com.jd.genie.entity.AgentProvider;
 import com.jd.genie.entity.ChatMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -33,7 +34,7 @@ public class DefaultAgentAdapter implements AgentAdapter {
     }
 
     @Override
-    public ChatResponse sendChatRequest(String sessionId, String userMessage, List<ChatMessage> history, String apiEndpoint, String apiKey, String botId, String externalSessionId, SseEmitter customEmitter) {
+    public ChatResponse sendChatRequest(String sessionId, String userMessage, List<ChatMessage> history, String externalSessionId, SseEmitter customEmitter, AgentProvider provider) {
         return null;
     }
 

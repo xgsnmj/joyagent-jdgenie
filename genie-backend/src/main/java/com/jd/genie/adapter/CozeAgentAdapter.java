@@ -3,6 +3,7 @@ package com.jd.genie.adapter;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.jd.genie.entity.AgentProvider;
 import com.jd.genie.entity.ChatMessage;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
@@ -57,16 +58,14 @@ public class CozeAgentAdapter implements AgentAdapter {
     public ChatResponse sendChatRequest(String sessionId,
                                        String userMessage,
                                        List<ChatMessage> history,
-                                       String apiEndpoint,
-                                       String apiKey,
-                                       String botId,
                                        String externalSessionId,
-                                       SseEmitter customEmitter) {
+                                       SseEmitter customEmitter,
+                                        AgentProvider agentProvider) {
         log.info("Coze适配器处理请求（使用自定义emitter） - 会话ID: {}, Bot ID: {}, 外部会话ID: {}",
-                sessionId, botId, externalSessionId);
+                sessionId, agentProvider.getBotId(), externalSessionId);
 
         // 验证必填参数
-        if (botId == null || botId.trim().isEmpty()) {
+        if (agentProvider.getBotId() == null || agentProvider.getBotId().trim().isEmpty()) {
             throw new IllegalArgumentException("Coze平台的Bot ID不能为空");
         }
 
@@ -80,17 +79,17 @@ public class CozeAgentAdapter implements AgentAdapter {
 
                 // 步骤1：如果没有外部会话ID，创建新会话
                 if (conversationId == null || conversationId.trim().isEmpty()) {
-                    log.info("创建新的Coze会话 - Bot ID: {}", botId);
-                    conversationId = createConversation(apiEndpoint, apiKey, botId);
+                    log.info("创建新的Coze会话 - Bot ID: {}", agentProvider.getBotId());
+                    conversationId = createConversation(agentProvider.getApiEndpoint(), agentProvider.getApiKey(), agentProvider.getBotId());
                     log.info("Coze会话创建成功 - Conversation ID: {}", conversationId);
                     response.setExternalSessionId(conversationId);
                 }
 
                 // 步骤2：发起Chat请求
-                String chatApiUrl = buildChatUrl(apiEndpoint, conversationId);
+                String chatApiUrl = buildChatUrl(agentProvider.getApiEndpoint(), conversationId);
                 log.info("发起Coze对话 - URL: {}, Conversation ID: {}", chatApiUrl, conversationId);
 
-                JSONObject requestBody = buildChatRequest(botId, userMessage);
+                JSONObject requestBody = buildChatRequest(agentProvider.getBotId(), userMessage);
 
                 RequestBody body = RequestBody.create(
                         requestBody.toJSONString(),
@@ -100,7 +99,7 @@ public class CozeAgentAdapter implements AgentAdapter {
                 Request request = new Request.Builder()
                         .url(chatApiUrl)
                         .post(body)
-                        .addHeader("Authorization", "Bearer " + apiKey)
+                        .addHeader("Authorization", "Bearer " + agentProvider.getApiKey())
                         .addHeader("Content-Type", "application/json")
                         .build();
 
