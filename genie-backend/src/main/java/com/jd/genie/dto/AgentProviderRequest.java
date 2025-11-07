@@ -15,10 +15,10 @@ import jakarta.validation.constraints.*;
 public class AgentProviderRequest {
 
     /**
-     * 平台类型：default/coze/ronghui
+     * 平台类型：default/coze/ronghui/tongyi/dify
      */
     @NotBlank(message = "平台类型不能为空")
-    @Pattern(regexp = "^(default|coze|ronghui)$", message = "平台类型只能是default/coze/ronghui")
+    @Pattern(regexp = "^(default|coze|ronghui|tongyi|dify)$", message = "平台类型只能是default/coze/ronghui/tongyi/dify")
     private String providerType;
 
     /**
@@ -46,6 +46,41 @@ public class AgentProviderRequest {
      */
     @Size(max = 100, message = "Bot ID不能超过100个字符")
     private String botId;
+
+    /**
+     * 通义点金的工作空间ID
+     * 仅tongyi类型需要，其他类型为空
+     */
+    @Size(max = 50, message = "工作空间ID不能超过50个字符")
+    private String workspaceId;
+
+    /**
+     * 租户ID
+     * 仅ronghui类型使用，其他类型为空
+     */
+    @Size(max = 50, message = "租户ID不能超过50个字符")
+    private String tenantId;
+
+    /**
+     * 登录用户ID
+     * 仅ronghui类型使用，其他类型为空
+     */
+    @Size(max = 50, message = "用户ID不能超过50个字符")
+    private String loginUserId;
+
+    /**
+     * 登录部门ID
+     * 仅ronghui类型使用，其他类型为空
+     */
+    @Size(max = 50, message = "部门ID不能超过50个字符")
+    private String loginDeptId;
+
+    /**
+     * 登录用户名
+     * 仅ronghui类型使用，其他类型为空
+     */
+    @Size(max = 100, message = "用户名不能超过100个字符")
+    private String loginUsername;
 
     /**
      * 是否为该用户的默认智能体
@@ -76,8 +111,8 @@ public class AgentProviderRequest {
     private String icon;
 
     /**
-     * 分类标签
-     * 教育、新零售、消费、金融等
+     * 分类标签（部门）
+     * 场外衍生品部、风险管理部、投资银行部、科技研发中心等
      */
     private String category;
 }

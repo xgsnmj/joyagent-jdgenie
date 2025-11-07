@@ -46,7 +46,7 @@ public class AgentAdapterFactory {
     /**
      * 根据平台类型获取适配器
      *
-     * @param providerType 平台类型（default/coze/ronghui）
+     * @param providerType 平台类型（default/coze/ronghui/tongyi/dify）
      * @return 对应的适配器实例
      */
     public AgentAdapter getAdapter(String providerType) {

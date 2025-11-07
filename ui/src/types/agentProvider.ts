@@ -8,7 +8,7 @@
 /**
  * 平台类型
  */
-export type ProviderType = 'default' | 'coze' | 'ronghui';
+export type ProviderType = 'default' | 'coze' | 'ronghui' | 'tongyi' | 'dify';
 
 /**
  * 智能体服务商配置
@@ -36,6 +36,16 @@ export interface AgentProvider {
   apiKey?: string;
   /** Coze平台的Bot ID（仅coze类型必填）*/
   botId?: string;
+  /** 通义点金的工作空间ID（仅tongyi类型必填）*/
+  workspaceId?: string;
+  /** 租户ID（仅ronghui类型使用）*/
+  tenantId?: string;
+  /** 登录用户ID（仅ronghui类型使用）*/
+  loginUserId?: string;
+  /** 登录部门ID（仅ronghui类型使用）*/
+  loginDeptId?: string;
+  /** 登录用户名（仅ronghui类型使用）*/
+  loginUsername?: string;
   /** 是否为该用户的默认智能体 */
   isDefault: boolean;
   /** 是否公开（1-公开，0-私有）*/
@@ -72,6 +82,16 @@ export interface AgentProviderRequest {
   apiKey?: string;
   /** Coze平台的Bot ID（仅coze类型必填）*/
   botId?: string;
+  /** 通义点金的工作空间ID（仅tongyi类型必填）*/
+  workspaceId?: string;
+  /** 租户ID（仅ronghui类型使用）*/
+  tenantId?: string;
+  /** 登录用户ID（仅ronghui类型使用）*/
+  loginUserId?: string;
+  /** 登录部门ID（仅ronghui类型使用）*/
+  loginDeptId?: string;
+  /** 登录用户名（仅ronghui类型使用）*/
+  loginUsername?: string;
   /** 是否为该用户的默认智能体 */
   isDefault?: boolean;
   /** 是否公开（1-公开，0-私有）*/
@@ -110,8 +130,18 @@ export const PROVIDER_TYPE_OPTIONS: ProviderTypeOption[] = [
   },
   {
     value: 'ronghui',
-    label: '融汇（阿里点金）',
-    description: '阿里巴巴融汇智能体平台'
+    label: '融汇',
+    description: '融汇智能体平台'
+  },
+  {
+    value: 'tongyi',
+    label: '通义点金',
+    description: '阿里通义千问智能体平台'
+  },
+  {
+    value: 'dify',
+    label: 'Dify',
+    description: 'Dify开源LLM应用平台'
   }
 ];
 
@@ -121,5 +151,7 @@ export const PROVIDER_TYPE_OPTIONS: ProviderTypeOption[] = [
 export const PROVIDER_TYPE_LABELS: Record<ProviderType, string> = {
   default: 'JDGenie（本地）',
   coze: 'Coze',
-  ronghui: '融汇（阿里点金）'
+  ronghui: '融汇',
+  tongyi: '通义点金',
+  dify: 'Dify'
 };

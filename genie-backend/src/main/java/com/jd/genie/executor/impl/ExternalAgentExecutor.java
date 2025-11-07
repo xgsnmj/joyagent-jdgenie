@@ -255,11 +255,9 @@ public class ExternalAgentExecutor implements AgentExecutor {
                 context.getSessionId(),
                 context.getOriginalQuery(),
                 history,
-                provider.getApiEndpoint(),
-                provider.getApiKey(),
-                provider.getBotId(),
                 session != null ? session.getExternalSessionId() : null,
-                targetEmitter  // 传入拦截器emitter
+                targetEmitter,
+                provider// 传入拦截器emitter
         );
 
         log.debug("[外部执行器] 请求已发送 - sessionId: {}", context.getSessionId());

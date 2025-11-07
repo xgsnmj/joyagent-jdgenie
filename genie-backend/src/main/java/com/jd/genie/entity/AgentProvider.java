@@ -28,10 +28,12 @@ public class AgentProvider {
     private Long userId;
 
     /**
-     * 平台类型：default/coze/ronghui
+     * 平台类型：default/coze/ronghui/tongyi/dify
      * - default: 本地MultiAgent体系
      * - coze: Coze智能体平台
-     * - ronghui: 融汇（阿里点金）智能体平台
+     * - ronghui: 融汇智能体平台
+     * - tongyi: 通义点金智能体平台
+     * - dify: Dify开源LLM应用平台
      */
     private String providerType;
 
@@ -57,6 +59,36 @@ public class AgentProvider {
      * 仅coze类型必填，其他类型为空
      */
     private String botId;
+
+    /**
+     * 通义点金的工作空间ID
+     * 仅tongyi类型需要，其他类型为空
+     */
+    private String workspaceId;
+
+    /**
+     * 租户ID
+     * 仅ronghui类型使用，其他类型为空
+     */
+    private String tenantId;
+
+    /**
+     * 登录用户ID
+     * 仅ronghui类型使用，其他类型为空
+     */
+    private String loginUserId;
+
+    /**
+     * 登录部门ID
+     * 仅ronghui类型使用，其他类型为空
+     */
+    private String loginDeptId;
+
+    /**
+     * 登录用户名
+     * 仅ronghui类型使用，其他类型为空
+     */
+    private String loginUsername;
 
     /**
      * 是否为该用户的默认智能体
@@ -102,8 +134,8 @@ public class AgentProvider {
     private Integer usageCount;
 
     /**
-     * 分类标签
-     * 教育、新零售、消费、金融等
+     * 分类标签（部门）
+     * 场外衍生品部、风险管理部、投资银行部、科技研发中心等
      */
     private String category;
 
