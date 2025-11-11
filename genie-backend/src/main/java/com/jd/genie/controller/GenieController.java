@@ -1,44 +1,22 @@
 package com.jd.genie.controller;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
-import com.jd.genie.agent.agent.AgentContext;
-import com.jd.genie.agent.printer.Printer;
-import com.jd.genie.agent.printer.SSEPrinter;
-import com.jd.genie.agent.tool.ToolCollection;
-import com.jd.genie.agent.tool.common.*;
-import com.jd.genie.agent.tool.mcp.McpTool;
-import com.jd.genie.agent.util.DateUtil;
-import com.jd.genie.agent.util.ThreadUtil;
 import com.jd.genie.config.GenieConfig;
-import com.jd.genie.util.ConversationDataCollector;
-import com.jd.genie.model.req.AgentRequest;
 import com.jd.genie.model.req.GptQueryReq;
-import com.jd.genie.service.AgentHandlerService;
 import com.jd.genie.service.IGptProcessService;
 import com.jd.genie.service.IChatHistoryService;
-import com.jd.genie.service.impl.AgentHandlerFactory;
 import com.jd.genie.util.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.UnsupportedEncodingException;
-import java.time.LocalDateTime;
-import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @RestController

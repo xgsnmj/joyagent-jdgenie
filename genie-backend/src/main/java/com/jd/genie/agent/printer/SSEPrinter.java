@@ -115,14 +115,6 @@ public class SSEPrinter implements Printer {
                     response.getResultMap().put("agentType", agentType);
                     break;
                 case "agent_stream":
-                    // 累积流式回复内容到AgentContext
-                    if (message instanceof String && agentContext != null) {
-                        agentContext.getAssistantResponse().append((String) message);
-                        log.debug("{} accumulated stream: {} chars",
-                                  request.getRequestId(),
-                                  agentContext.getAssistantResponse().length());
-                    }
-                    response.setResult((String) message);
                     break;
                 case "result":
                     // 提取AI回复内容并保存到AgentContext
@@ -145,27 +137,15 @@ public class SSEPrinter implements Printer {
                         response.setResult(assistantReply);
                     }
 
-                    // 将AI回复累积到AgentContext中
-                    if (assistantReply != null && agentContext != null) {
-                        agentContext.getAssistantResponse().append(assistantReply);
-                        log.debug("{} accumulated assistant response: {} chars",
-                                  request.getRequestId(),
-                                  agentContext.getAssistantResponse().length());
-                    }
+
 
                     response.getResultMap().put("agentType", agentType);
                     break;
                 default:
                     break;
             }
-
             // 先转换为 GptProcessResult
             GptProcessResult result = handler.handle(request, response, agentRespList, eventResult);
-
-            // 收集 GptProcessResult 到 dataCollector
-            if (agentContext != null && agentContext.getDataCollector() != null) {
-                agentContext.getDataCollector().collectMessage(result);
-            }
 
             // 发送 GptProcessResult（而不是 AgentResponse）
             emitter.send(result);
