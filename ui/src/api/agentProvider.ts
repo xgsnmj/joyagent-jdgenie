@@ -5,8 +5,11 @@
  * @since 2025-01-03
  */
 
-import request from '@/utils/request';
-import type { AgentProvider, AgentProviderRequest } from '@/types/agentProvider';
+import request from "@/utils/request";
+import type {
+  AgentProvider,
+  AgentProviderRequest,
+} from "@/types/agentProvider";
 
 /**
  * 智能体服务商API
@@ -16,14 +19,16 @@ export const agentProviderAPI = {
    * 获取当前用户的所有智能体配置
    */
   getAll: () => {
-    return request.get<AgentProvider[]>('/api/agent-providers');
+    return request.get<AgentProvider[], AgentProvider[]>(
+      "/api/agent-providers"
+    );
   },
 
   /**
    * 创建智能体配置
    */
   create: (data: AgentProviderRequest) => {
-    return request.post<AgentProvider>('/api/agent-providers', data);
+    return request.post<AgentProvider>("/api/agent-providers", data);
   },
 
   /**
@@ -51,6 +56,6 @@ export const agentProviderAPI = {
    * 测试连接
    */
   testConnection: (data: AgentProviderRequest) => {
-    return request.post<string>('/api/agent-providers/test-connection', data);
-  }
+    return request.post<string>("/api/agent-providers/test-connection", data);
+  },
 };

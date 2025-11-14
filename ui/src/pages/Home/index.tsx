@@ -107,17 +107,18 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
     async (sessionId: string) => {
       try {
         setLoadingHistory(true);
-        const { messages, agentProviderType } =
+        const { messages, agentProviderType, agentProviderId } =
           await getSessionMessages(sessionId);
         setAgentType(agentProviderType);
+        setSelectedProviderId(agentProviderId);
+        setLoadedSessionId(sessionId);
         if (messages && messages.length > 0) {
           // 只设置历史消息，不设置inputInfo
           // 这样ChatView会直接显示历史消息，而不会重新发送
           setHistoryMessages(messages);
-          setLoadedSessionId(sessionId);
-
           // 从会话列表中查找该会话，恢复智能体配置
           const session = sessions.find((s) => s.sessionId === sessionId);
+
           if (session?.agentProviderId) {
             setSelectedProviderId(session.agentProviderId);
             const provider = providers.find(
@@ -156,6 +157,8 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
     const sessionId = searchParams.get("sessionId");
     setCurrentSessionId(sessionId);
 
+    console.log(sessionId);
+
     // 情况1：URL有sessionId，且不是当前已加载的会话 → 加载新的历史会话
     if (sessionId && sessionId !== loadedSessionId) {
       console.log("检测到sessionId参数，加载历史会话:", sessionId);
@@ -188,10 +191,8 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
 
     // 如果有输入内容或已加载历史消息，显示ChatView
     if (inputInfo.message.length > 0 || historyMessages.length > 0) {
-      // 如果是加载历史会话（有历史消息且没有新输入），传入空的inputInfo
-      // 这样ChatView只会显示历史消息，不会触发新的对话
       const chatInputInfo =
-        historyMessages.length > 0 && inputInfo.message.length === 0
+        historyMessages.length > 0 || inputInfo.message.length === 0
           ? { message: "", deepThink: false }
           : inputInfo;
 
