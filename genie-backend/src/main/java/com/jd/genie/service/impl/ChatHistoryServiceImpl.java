@@ -2,11 +2,14 @@ package com.jd.genie.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.jd.genie.entity.AgentProvider;
 import com.jd.genie.entity.ChatMessage;
 import com.jd.genie.entity.ChatSession;
 import com.jd.genie.mapper.ChatSessionMapper;
 import com.jd.genie.model.dto.MessageVO;
+import com.jd.genie.model.dto.SessionMessagesResponse;
 import com.jd.genie.model.dto.SessionVO;
+import com.jd.genie.service.AgentProviderService;
 import com.jd.genie.service.IChatHistoryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -34,6 +37,9 @@ public class ChatHistoryServiceImpl implements IChatHistoryService {
 
     @Autowired
     private com.jd.genie.mapper.ChatMessageMapper chatMessageMapper;
+
+    @Autowired
+    private AgentProviderService agentProviderService;
 
     /**
      * 获取用户的会话列表
@@ -273,14 +279,14 @@ public class ChatHistoryServiceImpl implements IChatHistoryService {
     }
 
     /**
-     * 获取会话的消息列表
+     * 获取会话的消息列表（含智能体信息）
      *
      * @param sessionId 会话ID
      * @param userId    用户ID（用于权限校验）
-     * @return 消息列表
+     * @return 会话消息响应对象
      */
     @Override
-    public List<MessageVO> getSessionMessages(String sessionId, Long userId) {
+    public SessionMessagesResponse getSessionMessages(String sessionId, Long userId) {
         // 先验证会话是否存在且属于该用户
         LambdaQueryWrapper<ChatSession> sessionWrapper = new LambdaQueryWrapper<>();
         sessionWrapper.eq(ChatSession::getSessionId, sessionId)
@@ -299,9 +305,27 @@ public class ChatHistoryServiceImpl implements IChatHistoryService {
         List<ChatMessage> messages = chatMessageMapper.selectList(messageWrapper);
 
         // 转换为VO
-        return messages.stream()
+        List<MessageVO> messageVOs = messages.stream()
                 .map(this::convertToMessageVO)
                 .collect(Collectors.toList());
+
+        // 构建完整响应，包含智能体信息
+        SessionMessagesResponse.SessionMessagesResponseBuilder builder = SessionMessagesResponse.builder()
+                .sessionId(session.getSessionId())
+                .agentProviderId(session.getAgentProviderId())
+                .agentType(session.getAgentType())
+                .externalSessionId(session.getExternalSessionId())
+                .messages(messageVOs);
+
+        // 如果存在智能体配置ID，查询平台类型
+        if (session.getAgentProviderId() != null) {
+            AgentProvider provider = agentProviderService.getById(session.getAgentProviderId());
+            if (provider != null) {
+                builder.agentProviderType(provider.getProviderType());
+            }
+        }
+
+        return builder.build();
     }
 
     /**

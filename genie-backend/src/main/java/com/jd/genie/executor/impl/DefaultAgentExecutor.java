@@ -10,6 +10,7 @@ import com.jd.genie.context.SessionContext;
 import com.jd.genie.executor.AgentExecutor;
 import com.jd.genie.handler.AgentResponseHandler;
 import com.jd.genie.model.dto.MessageVO;
+import com.jd.genie.model.dto.SessionMessagesResponse;
 import com.jd.genie.model.req.AgentRequest;
 import com.jd.genie.service.AgentHandlerService;
 import com.jd.genie.service.IChatHistoryService;
@@ -133,10 +134,11 @@ public class DefaultAgentExecutor implements AgentExecutor {
 
         try {
             // 获取历史消息
-            List<MessageVO> historyMessages = chatHistoryService.getSessionMessages(
+            SessionMessagesResponse response = chatHistoryService.getSessionMessages(
                     context.getSessionId(),
                     context.getUserId()
             );
+            List<MessageVO> historyMessages = response.getMessages();
 
             // 只保留最近N轮对话
             int historyRounds = genieConfig.getConversationHistoryRounds();

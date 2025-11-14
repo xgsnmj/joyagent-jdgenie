@@ -184,7 +184,7 @@ public class RonghuiAgentAdapter implements AgentAdapter {
      *
      * @param userMessage 用户消息
      * @param appId 应用ID（botId）
-     * @param externalSessionId 外部会话ID（格式：session_id:group_id）
+     * @param sessionId 外部会话ID（格式：session_id:group_id）
      * @return 请求体JSON
      */
     private JSONObject buildRonghuiRequest(String userMessage, String appId, String sessionId) {
@@ -194,11 +194,66 @@ public class RonghuiAgentAdapter implements AgentAdapter {
         request.put("app_id", appId);
         request.put("question", userMessage);
         request.put("inputs", new JSONObject());  // 附加信息，可选
-        request.put("stream", true);  // 启用流式输出
+        request.put("stream", "true");  // 启用流式输出
         request.put("session_id", sessionId);
         request.put("group_id", sessionId);
 
         return request;
+    }
+
+    private void processRonghuiSSEStream(InputStream inputStream, String sessionId, SseEmitter emitter) {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+
+            String line;
+            int sequence = 0;
+            String currentEvent = null;
+            StringBuilder messageContent = new StringBuilder();
+
+            while ((line = reader.readLine()) != null) {
+                log.debug("Coze SSE行: {}", line);
+
+                // 解析事件类型
+                if (line.startsWith("event:")) {
+                    currentEvent = line.substring(6).trim();
+                    continue;
+                }
+
+                // 解析数据
+                if (line.startsWith("data:")) {
+                    String data = line.substring(5).trim();
+
+                    // 检查结束标记
+                    if ("\"[DONE]\"".equals(data)) {
+                        log.info("Coze SSE流结束");
+                        break;
+                    }
+
+                    try {
+                        JSONObject eventData = JSON.parseObject(data);
+
+                        // 提取chat_id（用于取消对话）
+//                        String chatId = eventData.getString("id");
+//                        if (chatId != null) {
+//                            chatIds.put(sessionId, chatId);
+//                        }
+                        // 所有事件都转发
+                        emitter.send(SseEmitter.event()
+                                .name(currentEvent)
+                                .data(data));
+
+                    } catch (Exception e) {
+                        log.error("解析Coze SSE数据失败: {}", data, e);
+                    }
+                }
+            }
+
+            log.info("Coze对话完成 - 会话ID: {}, 总消息内容长度: {}", sessionId, messageContent.length());
+
+        } catch (Exception e) {
+            log.error("处理Coze SSE流失败", e);
+            throw new RuntimeException("处理Coze SSE流失败", e);
+        }
     }
 
     /**
@@ -220,48 +275,48 @@ public class RonghuiAgentAdapter implements AgentAdapter {
      *   }
      * }
      */
-    private void processRonghuiSSEStream(InputStream inputStream, String sessionId, SseEmitter emitter) {
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-
-            String line;
-            String currentEvent = null;
-            StringBuilder dataBuffer = new StringBuilder();
-
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-
-                if (line.isEmpty()) {
-                    // 空行表示一个SSE事件结束
-                    if (currentEvent != null && dataBuffer.length() > 0) {
-                        processRonghuiSSEEvent(currentEvent, dataBuffer.toString(), emitter);
-                        currentEvent = null;
-                        dataBuffer.setLength(0);
-                    }
-                    continue;
-                }
-
-                if (line.startsWith("event:")) {
-                    currentEvent = line.substring(6).trim();
-                } else if (line.startsWith("data:")) {
-                    String data = line.substring(5).trim();
-                    if (dataBuffer.length() > 0) {
-                        dataBuffer.append("\n");
-                    }
-                    dataBuffer.append(data);
-                }
-            }
-
-            // 处理最后一个事件
-            if (currentEvent != null && dataBuffer.length() > 0) {
-                processRonghuiSSEEvent(currentEvent, dataBuffer.toString(), emitter);
-            }
-
-        } catch (Exception e) {
-            log.error("处理融汇SSE流失败", e);
-            throw new RuntimeException(e);
-        }
-    }
+//    private void processRonghuiSSEStream(InputStream inputStream, String sessionId, SseEmitter emitter) {
+//        try (BufferedReader reader = new BufferedReader(
+//                new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+//
+//            String line;
+//            String currentEvent = null;
+//            StringBuilder dataBuffer = new StringBuilder();
+//
+//            while ((line = reader.readLine()) != null) {
+//                line = line.trim();
+//
+//                if (line.isEmpty()) {
+//                    // 空行表示一个SSE事件结束
+//                    if (currentEvent != null && dataBuffer.length() > 0) {
+//                        processRonghuiSSEEvent(currentEvent, dataBuffer.toString(), emitter);
+//                        currentEvent = null;
+//                        dataBuffer.setLength(0);
+//                    }
+//                    continue;
+//                }
+//
+//                if (line.startsWith("event:")) {
+//                    currentEvent = line.substring(6).trim();
+//                } else if (line.startsWith("data:")) {
+//                    String data = line.substring(5).trim();
+//                    if (dataBuffer.length() > 0) {
+//                        dataBuffer.append("\n");
+//                    }
+//                    dataBuffer.append(data);
+//                }
+//            }
+//
+//            // 处理最后一个事件
+//            if (currentEvent != null && dataBuffer.length() > 0) {
+//                processRonghuiSSEEvent(currentEvent, dataBuffer.toString(), emitter);
+//            }
+//
+//        } catch (Exception e) {
+//            log.error("处理融汇SSE流失败", e);
+//            throw new RuntimeException(e);
+//        }
+//    }
 
     /**
      * 处理单个融汇SSE事件
