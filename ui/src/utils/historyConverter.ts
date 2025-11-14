@@ -19,6 +19,9 @@ export function processAssistantHistoryMessage(
     case "tongyi":
       chat = tongyiHistoryToChat(chat, assistantMessage);
       break;
+    case "ronghui":
+      chat = ronghuiHistoryToChat(chat, assistantMessage);
+      break;
     default:
       chat = localHistoryToChat(chat, assistantMessage);
       break;
@@ -67,7 +70,9 @@ function localHistoryToChat(
   ).messages;
   if (metaData && Array.isArray(metaData)) {
     metaData.forEach((item) => {
-      chat = combineData(item.resultMap.eventData!, chat);
+      if (item?.resultMap?.eventData) {
+        chat = combineData(item.resultMap.eventData!, chat);
+      }
     });
   }
   return chat;
@@ -79,7 +84,7 @@ function cozeHistoryToChat(
 ) {
   if (assistantMessage.metadata) {
     try {
-      const cozeConverter = agentConverterFactory.getConverter("coze");
+      const converter = agentConverterFactory.getConverter("coze");
       let metadata: MESSAGE.CozeHistoryMeta;
       if (typeof assistantMessage.metadata === "string") {
         metadata = JSON.parse(assistantMessage.metadata);
@@ -88,7 +93,7 @@ function cozeHistoryToChat(
           const { eventName, data } = item;
           if (eventName !== "done") {
             const messageData = JSON.parse(data);
-            const cozeMessage = cozeConverter?.convert(messageData, eventName);
+            const cozeMessage = converter?.convert(messageData, eventName);
             if (cozeMessage?.resultMap.eventData) {
               chat = combineData(cozeMessage.resultMap.eventData!, chat);
             }
@@ -108,7 +113,7 @@ function tongyiHistoryToChat(
 ) {
   if (assistantMessage.metadata) {
     try {
-      const cozeConverter = agentConverterFactory.getConverter("tongyi");
+      const converter = agentConverterFactory.getConverter("tongyi");
       let metadata: MESSAGE.CozeHistoryMeta;
       if (typeof assistantMessage.metadata === "string") {
         metadata = JSON.parse(assistantMessage.metadata);
@@ -117,7 +122,36 @@ function tongyiHistoryToChat(
           const { eventName, data } = item;
           if (eventName !== "done") {
             const messageData = JSON.parse(data);
-            const cozeMessage = cozeConverter?.convert(messageData, eventName);
+            const cozeMessage = converter?.convert(messageData, eventName);
+            if (cozeMessage?.resultMap.eventData) {
+              chat = combineData(cozeMessage.resultMap.eventData!, chat);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  return chat;
+}
+
+function ronghuiHistoryToChat(
+  chat: CHAT.ChatItem,
+  assistantMessage: MESSAGE.History
+) {
+  if (assistantMessage.metadata) {
+    try {
+      const converter = agentConverterFactory.getConverter("ronghui");
+      let metadata: MESSAGE.CozeHistoryMeta;
+      if (typeof assistantMessage.metadata === "string") {
+        metadata = JSON.parse(assistantMessage.metadata);
+        console.log("[ronghui:metadata]", metadata);
+        metadata.messages.forEach((item) => {
+          const { eventName, data } = item;
+          if (eventName !== "done") {
+            const messageData = JSON.parse(data);
+            const cozeMessage = converter?.convert(messageData, eventName);
             if (cozeMessage?.resultMap.eventData) {
               chat = combineData(cozeMessage.resultMap.eventData!, chat);
             }

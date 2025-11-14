@@ -40,7 +40,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
   } = props;
 
   useEffect(() => {
-    if (inputInfoProp.message?.length !== 0) {
+    if (inputInfoProp.message?.length !== 0 && initialMessages.length === 0) {
       product?.type === "dataAgent" && !inputInfoProp.deepThink
         ? sendDataMessage(inputInfoProp)
         : sendMessage(inputInfoProp);
@@ -91,6 +91,7 @@ const ChatView: GenieType.FC<Props> = (props) => {
   // 设置默认选中的智能体
   useEffect(() => {
     if (currentProvider) {
+      console.log(currentProvider);
       setSelectedProviderId(currentProvider.id);
     }
   }, [currentProvider]);
@@ -412,7 +413,11 @@ const ChatView: GenieType.FC<Props> = (props) => {
   };
 
   const renderMultAgent = () => {
-    console.log("[渲染多智能体] 渲染开始", chatList.current);
+    console.log(
+      "[渲染多智能体] 渲染开始",
+      chatList.current,
+      selectedProviderId
+    );
 
     return (
       <div className="h-full w-full flex justify-center">
