@@ -1,33 +1,144 @@
-# Genie Client API Service
+# 华创证券智能体底座 - MCP客户端服务
 
-## 安装
+## 项目简介
 
-```bash
-uv venv
-source .venv/bin/activate
+华创证券智能体底座MCP客户端服务是基于 Python 和 FastAPI 构建的模型上下文协议（Model Context Protocol，MCP）客户端实现，为智能体提供标准化的外部工具集成能力。本服务支持连接和调用遵循MCP协议的第三方工具服务器，实现智能体与外部能力的无缝对接。
+
+**开发单位**: 华创证券科技研发中心
+**项目定位**: 企业内部智能体基础设施平台工具集成层
+
+**协议版本**: MCP 1.9.4
+
+## 什么是MCP？
+
+Model Context Protocol (MCP) 是一个开放的标准化协议，旨在让大语言模型（LLM）能够安全、统一地访问外部工具和数据源。MCP提供了一套标准的接口规范，使得智能体可以通过统一的方式调用各种第三方服务。
+
+**MCP的优势**:
+- **标准化**: 统一的协议规范，降低集成成本
+- **安全性**: 规范的认证和授权机制
+- **可扩展**: 支持动态发现和注册工具
+- **社区生态**: 丰富的第三方MCP服务器实现
+
+## 技术栈
+
+### 核心框架
+- **Python 3.10-3.13**: 兼容多版本Python
+- **FastAPI**: 高性能异步Web框架
+- **Uvicorn**: ASGI服务器
+- **MCP 1.9.4**: 模型上下文协议官方SDK
+
+### 通信协议
+- **SSE (Server-Sent Events)**: 支持SSE传输层
+- **HTTP**: 支持标准HTTP传输层
+- **Pydantic**: 数据验证和序列化
+
+## 项目结构
+
+```
+genie-client/
+├── mcp_client/
+│   ├── __init__.py
+│   ├── client.py              # MCP客户端核心实现
+│   ├── server.py              # FastAPI服务器
+│   ├── models.py              # 数据模型定义
+│   └── config.py              # 配置管理
+├── tests/                     # 测试代码
+│   ├── test_client.py
+│   └── test_server.py
+├── .env_template              # 环境变量模板
+├── pyproject.toml             # 项目依赖配置
+├── requirements.txt           # pip依赖列表
+├── server.py                  # 启动文件
+└── README.md
 ```
 
-## API 文档
+## 核心功能
 
-启动服务后，可以访问以下地址查看 API 文档：
+### 1. 工具发现与列表
 
-- Swagger UI: http://localhost:8188/docs
-- ReDoc: http://localhost:8188/redoc
+**功能**: 连接MCP服务器，获取所有可用工具列表
 
-## API 端点
+**API端点**: `POST /v1/tool/list`
 
-- `GET /health` - 健康检查
-- `POST /v1/tool/list` - 工具列表(不支持分页)
-- `POST /v1/tool/call` - 工具调用
-
-## 示例请求
-
-###  1、健康检查接口
-
-```bash
-curl "http://localhost:8188/health"
+**请求示例**:
+```json
+{
+  "server_url": "https://mcp.amap.com/sse?key=your_api_key"
+}
 ```
 
+**响应示例**:
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "name": "maps_text_search",
+      "description": "关键字搜索 API 根据用户输入的关键字进行 POI 搜索",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "keywords": {
+            "type": "string",
+            "description": "查询关键字"
+          },
+          "city": {
+            "type": "string",
+            "description": "查询城市"
+          }
+        },
+        "required": ["keywords"]
+      },
+      "annotations": null
+    }
+  ]
+}
+```
+
+### 2. 工具调用
+
+**功能**: 调用MCP服务器提供的具体工具
+
+**API端点**: `POST /v1/tool/call`
+
+**请求示例**:
+```json
+{
+  "server_url": "https://mcp.amap.com/sse?key=your_api_key",
+  "name": "maps_geo",
+  "arguments": {
+    "address": "经海路地铁站"
+  }
+}
+```
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "_meta": null,
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"results\":[{\"country\":\"中国\",\"province\":\"北京市\",\"city\":\"北京市\",\"location\":\"116.562245,39.783587\",\"level\":\"公交地铁站点\"}]}",
+        "annotations": null
+      }
+    ],
+    "isError": false
+  }
+}
+```
+
+### 3. 健康检查
+
+**功能**: 检查服务运行状态
+
+**API端点**: `GET /health`
+
+**响应示例**:
 ```json
 {
   "status": "healthy",
@@ -36,442 +147,399 @@ curl "http://localhost:8188/health"
 }
 ```
 
-### 2、工具列表接口
+## 支持的MCP服务器示例
 
+### 高德地图MCP服务器
+- **URL**: `https://mcp.amap.com/sse?key={your_api_key}`
+- **工具类别**: 地图搜索、路径规划、地理编码、天气查询
+- **典型工具**:
+  - `maps_text_search`: 关键字POI搜索
+  - `maps_direction_driving`: 驾车路径规划
+  - `maps_geo`: 地址转坐标
+  - `maps_weather`: 天气查询
+
+### 其他MCP服务器
+- **文件系统服务器**: 提供本地文件操作能力
+- **数据库服务器**: 提供数据库查询能力
+- **自定义业务服务器**: 企业内部业务系统封装的MCP服务
+
+## 安装和运行
+
+### 前置要求
+
+- **Python**: 3.10-3.13 版本
+- **uv**: Python包管理工具（推荐）或 pip
+
+### 使用 uv 安装（推荐）
+
+1. 安装uv:
 ```bash
-curl -X POST 'http://localhost:8188/v1/tool/list' -H "Content-Type: application/json" -d '{
-        "server_url": "https://mcp.amap.com/sse?key=xxxxxxxxxxxx"
-}'
+pip install uv
 ```
 
-```json
-{
-    "code": 200,
-    "message": "success",
-    "data": [
-        {
-            "name": "maps_direction_bicycling",
-            "description": "骑行路径规划用于规划骑行通勤方案，规划时会考虑天桥、单行线、封路等情况。最大支持 500km 的骑行路线规划",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "origin": {
-                        "type": "string",
-                        "description": "出发点经纬度，坐标格式为：经度，纬度"
-                    },
-                    "destination": {
-                        "type": "string",
-                        "description": "目的地经纬度，坐标格式为：经度，纬度"
-                    }
-                },
-                "required": [
-                    "origin",
-                    "destination"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_direction_driving",
-            "description": "驾车路径规划 API 可以根据用户起终点经纬度坐标规划以小客车、轿车通勤出行的方案，并且返回通勤方案的数据。",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "origin": {
-                        "type": "string",
-                        "description": "出发点经纬度，坐标格式为：经度，纬度"
-                    },
-                    "destination": {
-                        "type": "string",
-                        "description": "目的地经纬度，坐标格式为：经度，纬度"
-                    }
-                },
-                "required": [
-                    "origin",
-                    "destination"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_direction_transit_integrated",
-            "description": "根据用户起终点经纬度坐标规划综合各类公共（火车、公交、地铁）交通方式的通勤方案，并且返回通勤方案的数据，跨城场景下必须传起点城市与终点城市",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "origin": {
-                        "type": "string",
-                        "description": "出发点经纬度，坐标格式为：经度，纬度"
-                    },
-                    "destination": {
-                        "type": "string",
-                        "description": "目的地经纬度，坐标格式为：经度，纬度"
-                    },
-                    "city": {
-                        "type": "string",
-                        "description": "公共交通规划起点城市"
-                    },
-                    "cityd": {
-                        "type": "string",
-                        "description": "公共交通规划终点城市"
-                    }
-                },
-                "required": [
-                    "origin",
-                    "destination",
-                    "city",
-                    "cityd"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_direction_walking",
-            "description": "根据输入起点终点经纬度坐标规划100km 以内的步行通勤方案，并且返回通勤方案的数据",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "origin": {
-                        "type": "string",
-                        "description": "出发点经度，纬度，坐标格式为：经度，纬度"
-                    },
-                    "destination": {
-                        "type": "string",
-                        "description": "目的地经度，纬度，坐标格式为：经度，纬度"
-                    }
-                },
-                "required": [
-                    "origin",
-                    "destination"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_distance",
-            "description": "测量两个经纬度坐标之间的距离,支持驾车、步行以及球面距离测量",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "origins": {
-                        "type": "string",
-                        "description": "起点经度，纬度，可以传多个坐标，使用竖线隔离，比如120,30|120,31，坐标格式为：经度，纬度"
-                    },
-                    "destination": {
-                        "type": "string",
-                        "description": "终点经度，纬度，坐标格式为：经度，纬度"
-                    },
-                    "type": {
-                        "type": "string",
-                        "description": "距离测量类型,1代表驾车距离测量，0代表直线距离测量，3步行距离测量"
-                    }
-                },
-                "required": [
-                    "origins",
-                    "destination"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_geo",
-            "description": "将详细的结构化地址转换为经纬度坐标。支持对地标性名胜景区、建筑物名称解析为经纬度坐标",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "address": {
-                        "type": "string",
-                        "description": "待解析的结构化地址信息"
-                    },
-                    "city": {
-                        "type": "string",
-                        "description": "指定查询的城市"
-                    }
-                },
-                "required": [
-                    "address"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_regeocode",
-            "description": "将一个高德经纬度坐标转换为行政区划地址信息",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "location": {
-                        "type": "string",
-                        "description": "经纬度"
-                    }
-                },
-                "required": [
-                    "location"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_ip_location",
-            "description": "IP 定位根据用户输入的 IP 地址，定位 IP 的所在位置",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "ip": {
-                        "type": "string",
-                        "description": "IP地址"
-                    }
-                },
-                "required": [
-                    "ip"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_schema_personal_map",
-            "description": "用于行程规划结果在高德地图展示。将行程规划位置点按照行程顺序填入lineList，返回结果为高德地图打开的URI链接，该结果不需总结，直接返回！",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "orgName": {
-                        "type": "string",
-                        "description": "行程规划地图小程序名称"
-                    },
-                    "lineList": {
-                        "type": "array",
-                        "description": "行程列表",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "title": {
-                                    "type": "string",
-                                    "description": "行程名称描述（按行程顺序）"
-                                },
-                                "pointInfoList": {
-                                    "type": "array",
-                                    "description": "行程目标位置点描述",
-                                    "items": {
-                                        "type": "object",
-                                        "properties": {
-                                            "name": {
-                                                "type": "string",
-                                                "description": "行程目标位置点名称"
-                                            },
-                                            "lon": {
-                                                "type": "number",
-                                                "description": "行程目标位置点经度"
-                                            },
-                                            "lat": {
-                                                "type": "number",
-                                                "description": "行程目标位置点纬度"
-                                            },
-                                            "poiId": {
-                                                "type": "string",
-                                                "description": "行程目标位置点POIID"
-                                            }
-                                        },
-                                        "required": [
-                                            "name",
-                                            "lon",
-                                            "lat",
-                                            "poiId"
-                                        ]
-                                    }
-                                }
-                            },
-                            "required": [
-                                "title",
-                                "pointInfoList"
-                            ]
-                        }
-                    }
-                },
-                "required": [
-                    "orgName",
-                    "lineList"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_around_search",
-            "description": "周边搜，根据用户传入关键词以及坐标location，搜索出radius半径范围的POI",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "keywords": {
-                        "type": "string",
-                        "description": "搜索关键词"
-                    },
-                    "location": {
-                        "type": "string",
-                        "description": "中心点经度纬度"
-                    },
-                    "radius": {
-                        "type": "string",
-                        "description": "搜索半径"
-                    }
-                },
-                "required": [
-                    "keywords",
-                    "location"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_search_detail",
-            "description": "查询关键词搜或者周边搜获取到的POI ID的详细信息",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "description": "关键词搜或者周边搜获取到的POI ID"
-                    }
-                },
-                "required": [
-                    "id"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_text_search",
-            "description": "关键字搜索 API 根据用户输入的关键字进行 POI 搜索，并返回相关的信息",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "keywords": {
-                        "type": "string",
-                        "description": "查询关键字"
-                    },
-                    "city": {
-                        "type": "string",
-                        "description": "查询城市"
-                    },
-                    "citylimit": {
-                        "type": "boolean",
-                        "default": false,
-                        "description": "是否限制城市范围内搜索，默认不限制"
-                    }
-                },
-                "required": [
-                    "keywords"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_schema_navi",
-            "description": " Schema唤醒客户端-导航页面，用于根据用户输入终点信息，返回一个拼装好的客户端唤醒URI，用户点击该URI即可唤起对应的客户端APP。唤起客户端后，会自动跳转到导航页面。",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "lon": {
-                        "type": "string",
-                        "description": "终点经度"
-                    },
-                    "lat": {
-                        "type": "string",
-                        "description": "终点纬度"
-                    }
-                },
-                "required": [
-                    "lon",
-                    "lat"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_schema_take_taxi",
-            "description": "根据用户输入的起点和终点信息，返回一个拼装好的客户端唤醒URI，直接唤起高德地图进行打车。直接展示生成的链接，不需要总结",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "slon": {
-                        "type": "string",
-                        "description": "起点经度"
-                    },
-                    "slat": {
-                        "type": "string",
-                        "description": "起点纬度"
-                    },
-                    "sname": {
-                        "type": "string",
-                        "description": "起点名称"
-                    },
-                    "dlon": {
-                        "type": "string",
-                        "description": "终点经度"
-                    },
-                    "dlat": {
-                        "type": "string",
-                        "description": "终点纬度"
-                    },
-                    "dname": {
-                        "type": "string",
-                        "description": "终点名称"
-                    }
-                },
-                "required": [
-                    "dlon",
-                    "dlat",
-                    "dname"
-                ]
-            },
-            "annotations": null
-        },
-        {
-            "name": "maps_weather",
-            "description": "根据城市名称或者标准adcode查询指定城市的天气",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "city": {
-                        "type": "string",
-                        "description": "城市名称或者adcode"
-                    }
-                },
-                "required": [
-                    "city"
-                ]
-            },
-            "annotations": null
-        }
-    ]
-}
-```
-
-### 3、工具调用接口
-
+2. 创建虚拟环境:
 ```bash
-curl -X POST 'http://localhost:8188/call_tool' -H "Content-Type: application/json" -d '{
-    "server_url": "https://mcp.amap.com/sse?key=xxxxxxxxxxxx",
-    "name": "maps_geo",
-    "arguments": {
-        "address": "经海路地铁站"
-    }
-}'
+cd genie-client
+uv venv
 ```
 
-```json
-{
-    "code": 200,
-    "message": "success",
-    "data": {
-        "_meta": null,
-        "content": [
-            {
-                "type": "text",
-                "text": "{\"results\":[{\"country\":\"中国\",\"province\":\"北京市\",\"city\":\"北京市\",\"citycode\":\"010\",\"district\":\"通州区\",\"street\":[],\"number\":[],\"adcode\":\"110112\",\"location\":\"116.562245,39.783587\",\"level\":\"公交地铁站点\"},{\"country\":\"中国\",\"province\":\"云南省\",\"city\":\"昆明市\",\"citycode\":\"0871\",\"district\":\"官渡区\",\"street\":\"经海路\",\"number\":[],\"adcode\":\"530111\",\"location\":\"102.768586,24.994150\",\"level\":\"道路\"},{\"country\":\"中国\",\"province\":\"云南省\",\"city\":\"昆明市\",\"citycode\":\"0871\",\"district\":\"官渡区\",\"street\":\"经海路\",\"number\":[],\"adcode\":\"530111\",\"location\":\"102.768585,24.994179\",\"level\":\"道路\"},{\"country\":\"中国\",\"province\":\"云南省\",\"city\":\"昆明市\",\"citycode\":\"0871\",\"district\":\"官渡区\",\"street\":\"经海路\",\"number\":[],\"adcode\":\"530111\",\"location\":\"102.768585,24.994179\",\"level\":\"道路\"}]}",
-                "annotations": null
-            }
-        ],
-        "isError": false
+3. 激活虚拟环境:
+```bash
+# Linux/Mac
+source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
+```
+
+4. 安装依赖:
+```bash
+uv pip install -e .
+```
+
+5. 配置环境变量（可选）:
+```bash
+# Linux/Mac
+cp .env_template .env
+
+# Windows
+copy .env_template .env
+
+# 编辑.env文件，配置默认MCP服务器等
+```
+
+6. 启动服务:
+```bash
+python server.py
+```
+
+### 使用 pip 安装
+
+1. 创建虚拟环境:
+```bash
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+```
+
+2. 安装依赖:
+```bash
+pip install -r requirements.txt
+```
+
+3. 启动服务:
+```bash
+python server.py
+```
+
+### 验证服务
+
+1. 访问API文档: `http://localhost:8188/docs`
+2. 健康检查:
+```bash
+curl http://localhost:8188/health
+```
+
+3. 测试工具列表（需要有效的MCP服务器URL）:
+```bash
+curl -X POST 'http://localhost:8188/v1/tool/list' \
+  -H "Content-Type: application/json" \
+  -d '{
+    "server_url": "https://mcp.amap.com/sse?key=your_api_key"
+  }'
+```
+
+## API文档
+
+启动服务后访问:
+- **Swagger UI**: `http://localhost:8188/docs`
+- **ReDoc**: `http://localhost:8188/redoc`
+
+### API端点列表
+
+| 端点 | 方法 | 功能描述 |
+|------|------|----------|
+| `/health` | GET | 健康检查 |
+| `/v1/tool/list` | POST | 获取MCP服务器工具列表 |
+| `/v1/tool/call` | POST | 调用MCP服务器工具 |
+
+## 配置说明
+
+### 环境变量配置
+
+创建 `.env` 文件:
+```env
+# 服务配置
+SERVICE_HOST=0.0.0.0
+SERVICE_PORT=8188
+LOG_LEVEL=INFO
+
+# MCP配置
+MCP_DEFAULT_SERVER=https://mcp.amap.com/sse
+MCP_TIMEOUT=30
+MCP_RETRY_TIMES=3
+
+# 安全配置
+API_KEY_REQUIRED=false
+ALLOWED_ORIGINS=*
+```
+
+### MCP服务器注册
+
+支持在配置文件中预注册常用MCP服务器:
+
+```python
+# config.py
+MCP_SERVERS = {
+    "amap": {
+        "url": "https://mcp.amap.com/sse",
+        "description": "高德地图MCP服务",
+        "requires_api_key": True
+    },
+    "filesystem": {
+        "url": "http://localhost:9000/mcp",
+        "description": "本地文件系统MCP服务",
+        "requires_api_key": False
     }
 }
 ```
 
+## 开发指南
+
+### 添加新的MCP服务器支持
+
+1. 在配置文件中注册服务器:
+```python
+# config.py
+MCP_SERVERS["custom_service"] = {
+    "url": "https://custom.example.com/mcp",
+    "description": "自定义MCP服务",
+    "requires_api_key": True,
+    "default_headers": {
+        "X-Custom-Header": "value"
+    }
+}
+```
+
+2. 如需特殊处理，可扩展客户端:
+```python
+# mcp_client/client.py
+class CustomMCPClient(MCPClient):
+    def __init__(self, server_url: str):
+        super().__init__(server_url)
+        # 自定义初始化逻辑
+
+    async def call_tool(self, name: str, arguments: dict) -> dict:
+        # 自定义工具调用逻辑
+        result = await super().call_tool(name, arguments)
+        # 后处理逻辑
+        return result
+```
+
+### 运行测试
+
+```bash
+# 使用uv运行测试
+uv run pytest
+
+# 使用pytest运行测试
+pytest
+
+# 运行特定测试
+pytest tests/test_client.py -v
+
+# 查看测试覆盖率
+pytest --cov=mcp_client tests/
+```
+
+### 调试技巧
+
+**启用详细日志**:
+```env
+LOG_LEVEL=DEBUG
+```
+
+**查看MCP通信详情**:
+```python
+# 在client.py中添加日志
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```
+
+**使用交互式文档测试**:
+访问 `http://localhost:8188/docs`，使用Swagger UI进行交互式测试。
+
+## 集成到智能体系统
+
+### 后端集成示例
+
+在 `genie-backend` 中调用MCP客户端服务:
+
+```java
+// McpTool.java
+public class McpTool implements Tool {
+    private static final String MCP_CLIENT_URL = "http://localhost:8188";
+
+    public String listTools(String serverUrl) {
+        // 调用 /v1/tool/list 接口
+        Map<String, Object> request = Map.of("server_url", serverUrl);
+        String response = httpClient.post(
+            MCP_CLIENT_URL + "/v1/tool/list",
+            request
+        );
+        return response;
+    }
+
+    public String callTool(String serverUrl, String toolName, Map<String, Object> args) {
+        // 调用 /v1/tool/call 接口
+        Map<String, Object> request = Map.of(
+            "server_url", serverUrl,
+            "name", toolName,
+            "arguments", args
+        );
+        String response = httpClient.post(
+            MCP_CLIENT_URL + "/v1/tool/call",
+            request
+        );
+        return response;
+    }
+}
+```
+
+### 智能体调用流程
+
+1. **工具发现**: 智能体启动时，通过 `/v1/tool/list` 获取可用工具
+2. **工具注册**: 将MCP工具注册到智能体的工具库
+3. **工具调用**: 智能体执行任务时，通过 `/v1/tool/call` 调用具体工具
+4. **结果处理**: 解析工具返回结果，继续后续任务
+
+## 生产部署
+
+### 使用Docker部署
+
+1. 构建Docker镜像:
+```bash
+docker build -t genie-client:1.0 .
+```
+
+2. 运行容器:
+```bash
+docker run -d \
+  --name genie-client \
+  -p 8188:8188 \
+  genie-client:1.0
+```
+
+### 使用systemd管理服务
+
+1. 创建服务文件:
+```ini
+# /etc/systemd/system/genie-client.service
+[Unit]
+Description=Genie MCP Client Service
+After=network.target
+
+[Service]
+Type=simple
+User=genie
+WorkingDirectory=/opt/genie-client
+Environment="PATH=/opt/genie-client/.venv/bin"
+ExecStart=/opt/genie-client/.venv/bin/python server.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+2. 启动服务:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable genie-client
+sudo systemctl start genie-client
+sudo systemctl status genie-client
+```
+
+### 高可用部署
+
+使用Nginx进行负载均衡:
+
+```nginx
+upstream mcp_client_backend {
+    server 127.0.0.1:8188;
+    server 127.0.0.1:8189;
+    server 127.0.0.1:8190;
+}
+
+server {
+    listen 80;
+    server_name mcp-client.example.com;
+
+    location / {
+        proxy_pass http://mcp_client_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+## 常见问题
+
+### Q1: 连接MCP服务器失败
+
+**A**:
+1. 检查MCP服务器URL是否正确
+2. 验证网络连接是否畅通
+3. 确认API密钥（如需要）是否有效
+4. 查看服务日志获取详细错误信息
+
+### Q2: 工具调用返回错误
+
+**A**:
+1. 确认工具名称和参数是否正确
+2. 检查工具的inputSchema要求
+3. 验证必填参数是否都已提供
+4. 查看MCP服务器返回的详细错误信息
+
+### Q3: 服务启动失败
+
+**A**:
+1. 检查Python版本是否在3.10-3.13范围内
+2. 确认所有依赖已正确安装
+3. 检查端口8188是否被占用
+4. 查看启动日志中的错误信息
+
+### Q4: SSE连接超时
+
+**A**:
+1. 增加超时时间配置
+2. 检查MCP服务器是否支持SSE
+3. 验证网络环境是否稳定
+4. 尝试使用HTTP传输层
+
+### Q5: 如何调试MCP通信问题？
+
+**A**:
+1. 启用DEBUG日志级别
+2. 使用Wireshark抓包分析
+3. 查看MCP服务器端日志
+4. 使用Swagger UI进行交互式测试
+
+## MCP协议规范
+
+本服务遵循 MCP 1.9.4 协议规范，详细协议文档请参考:
+- **官方文档**: https://modelcontextprotocol.io/
+- **GitHub仓库**: https://github.com/modelcontextprotocol
+
+## 技术支持
+
+**内部技术支持**:
+- 联系人: 华创证券科技研发中心
+- 技术文档: 见项目Wiki
+- Issue追踪: 内部JIRA系统
+
+**相关文档**:
+- [后端服务文档](../genie-backend/README.md)
+- [AI工具服务文档](../genie-tool/README.md)
+- [前端应用文档](../ui/README.md)
+- [MCP协议文档](https://modelcontextprotocol.io/)
