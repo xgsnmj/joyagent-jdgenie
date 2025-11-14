@@ -25,6 +25,23 @@ declare global {
       deepThink?: boolean;
     };
 
+    type CozeHistoryMeta = {
+      firstMessageTime: string;
+      lastMessageTime: string;
+      messages: CozeHistoryMetaMessage[];
+      totalMessages: number;
+      totalSize: number;
+    };
+
+    type CozeHistoryMetaMessage = {
+      dataSize: number;
+      eventName: string;
+      id: string;
+      data: string;
+    };
+
+    type CozeHistoryMetaMessageData = {};
+
     // 接口数据
     type MsgItem = {
       logId: number;

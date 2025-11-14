@@ -1,6 +1,10 @@
+import { ProviderType } from "./agentProvider";
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace CHAT {
+    export type AgentType = ProviderType;
+
     export type ChatItem = GenieType.Merge<
       Pick<MESSAGE.Question, "sessionId" | "query" | "requestId">,
       {

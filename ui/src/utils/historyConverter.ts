@@ -1,5 +1,5 @@
 import { handleTaskData, combineData } from "@/utils/chat";
-import { cloneDeep } from "lodash";
+import { agentConverterFactory } from "./agentConverters";
 
 /**
  * 处理AI回答消息，将回答数据填充到 ChatItem 中
@@ -7,13 +7,33 @@ import { cloneDeep } from "lodash";
  * @param assistantMessage AI回答消息
  */
 export function processAssistantHistoryMessage(
-  chatItem: CHAT.ChatItem,
+  chat: CHAT.ChatItem,
+  assistantMessage: MESSAGE.History,
+  agentType: CHAT.AgentType = "default"
+) {
+  console.log("===================处理历史会话[开始]===================");
+  switch (agentType) {
+    case "coze":
+      chat = cozeHistoryToChat(chat, assistantMessage);
+      break;
+    case "tongyi":
+      chat = tongyiHistoryToChat(chat, assistantMessage);
+      break;
+    default:
+      chat = localHistoryToChat(chat, assistantMessage);
+      break;
+  }
+  console.log("===================处理历史会话[结束]===================");
+  return transformHistory(chat);
+}
+
+function localHistoryToChat(
+  chat: CHAT.ChatItem,
   assistantMessage: MESSAGE.History
 ) {
   // 设置基本信息
-  chatItem.response = assistantMessage.content || "";
+  chat.response = assistantMessage.content || "";
 
-  // 处理任务数据
   if (assistantMessage.tasks) {
     try {
       let tasksData: CHAT.Task[] | null = null;
@@ -21,8 +41,7 @@ export function processAssistantHistoryMessage(
         tasksData = JSON.parse(assistantMessage.tasks);
       }
       if (tasksData && Array.isArray(tasksData)) {
-        console.log("[历史消息] 任务", cloneDeep(tasksData));
-        chatItem.multiAgent.tasks = convertTasksData(tasksData);
+        chat.multiAgent.tasks = convertTasksData(tasksData);
       }
     } catch (error) {}
   }
@@ -36,8 +55,8 @@ export function processAssistantHistoryMessage(
       }
 
       if (planData) {
-        chatItem.multiAgent.plan = planData;
-        chatItem.plan = planData;
+        chat.multiAgent.plan = planData;
+        chat.plan = planData;
       }
     } catch (error) {}
   }
@@ -48,21 +67,79 @@ export function processAssistantHistoryMessage(
   ).messages;
   if (metaData && Array.isArray(metaData)) {
     metaData.forEach((item) => {
-      chatItem = combineData(item.resultMap.eventData!, chatItem);
+      chat = combineData(item.resultMap.eventData!, chat);
     });
   }
+  return chat;
+}
 
+function cozeHistoryToChat(
+  chat: CHAT.ChatItem,
+  assistantMessage: MESSAGE.History
+) {
+  if (assistantMessage.metadata) {
+    try {
+      const cozeConverter = agentConverterFactory.getConverter("coze");
+      let metadata: MESSAGE.CozeHistoryMeta;
+      if (typeof assistantMessage.metadata === "string") {
+        metadata = JSON.parse(assistantMessage.metadata);
+        console.log("[coze:metadata]", metadata);
+        metadata.messages.forEach((item) => {
+          const { eventName, data } = item;
+          if (eventName !== "done") {
+            const messageData = JSON.parse(data);
+            const cozeMessage = cozeConverter?.convert(messageData, eventName);
+            if (cozeMessage?.resultMap.eventData) {
+              chat = combineData(cozeMessage.resultMap.eventData!, chat);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  return chat;
+}
+
+function tongyiHistoryToChat(
+  chat: CHAT.ChatItem,
+  assistantMessage: MESSAGE.History
+) {
+  if (assistantMessage.metadata) {
+    try {
+      const cozeConverter = agentConverterFactory.getConverter("tongyi");
+      let metadata: MESSAGE.CozeHistoryMeta;
+      if (typeof assistantMessage.metadata === "string") {
+        metadata = JSON.parse(assistantMessage.metadata);
+        console.log("[tongyi:metadata]", metadata);
+        metadata.messages.forEach((item) => {
+          const { eventName, data } = item;
+          if (eventName !== "done") {
+            const messageData = JSON.parse(data);
+            const cozeMessage = cozeConverter?.convert(messageData, eventName);
+            if (cozeMessage?.resultMap.eventData) {
+              chat = combineData(cozeMessage.resultMap.eventData!, chat);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  return chat;
+}
+
+function transformHistory(chat: CHAT.ChatItem) {
   try {
     const taskDataResult = handleTaskData(
-      chatItem,
-      chatItem.deepThink, // 历史数据默认不使用深度思考
-      chatItem.multiAgent
+      chat,
+      chat.deepThink, // 历史数据默认不使用深度思考
+      chat.multiAgent
     );
-    console.log("[历史消息] 转换", taskDataResult);
     return taskDataResult;
-  } catch (error) {
-    console.error("处理历史任务数据失败:", error);
-  }
+  } catch (error) {}
 }
 
 /**
