@@ -26,7 +26,7 @@
 | username | VARCHAR | 50 | NO | - | NO | NO | 用户名（登录账号，唯一，2-20字符，支持中文、英文、下划线） |
 | password | VARCHAR | 200 | NO | - | NO | NO | 密码（BCrypt加密，6-20字符） |
 | nickname | VARCHAR | 50 | YES | NULL | NO | NO | 用户昵称（默认使用用户名） |
-| email | VARCHAR | 100 | NO | - | NO | NO | 电子邮箱（必填，唯一，支持用户名/邮箱登录） |
+| email | VARCHAR | 100 | YES | NULL | NO | NO | 电子邮箱 |
 | phone | VARCHAR | 20 | YES | NULL | NO | NO | 手机号码 |
 | avatar | VARCHAR | 500 | YES | NULL | NO | NO | 头像URL |
 | status | TINYINT | - | YES | 0 | NO | NO | 用户状态（0-正常，1-停用，2-禁用） |
@@ -39,7 +39,7 @@
 **索引**:
 - PRIMARY KEY (`id`)
 - UNIQUE KEY `uk_username` (`username`) - 用户名唯一索引
-- UNIQUE KEY `uk_email` (`email`) - 邮箱唯一索引
+- KEY `idx_email` (`email`)
 - KEY `idx_phone` (`phone`)
 - KEY `idx_status` (`status`)
 
@@ -47,10 +47,10 @@
 ```sql
 CREATE TABLE `sys_user` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '用户ID（主键）',
-  `username` VARCHAR(50) NOT NULL COMMENT '用户名（登录账号，唯一，2-20字符，支持中文、英文、下划线）',
-  `password` VARCHAR(200) NOT NULL COMMENT '密码（BCrypt加密，6-20字符）',
-  `nickname` VARCHAR(50) DEFAULT NULL COMMENT '用户昵称（默认使用用户名）',
-  `email` VARCHAR(100) NOT NULL COMMENT '电子邮箱（必填，唯一，支持用户名/邮箱登录）',
+  `username` VARCHAR(50) NOT NULL COMMENT '用户名（登录账号）',
+  `password` VARCHAR(200) NOT NULL COMMENT '密码（BCrypt加密）',
+  `nickname` VARCHAR(50) DEFAULT NULL COMMENT '用户昵称',
+  `email` VARCHAR(100) DEFAULT NULL COMMENT '电子邮箱',
   `phone` VARCHAR(20) DEFAULT NULL COMMENT '手机号码',
   `avatar` VARCHAR(500) DEFAULT NULL COMMENT '头像URL',
   `status` TINYINT DEFAULT 0 COMMENT '用户状态（0-正常，1-停用，2-禁用）',
@@ -61,7 +61,7 @@ CREATE TABLE `sys_user` (
   `yn` TINYINT DEFAULT 0 COMMENT '逻辑删除（0-未删除，1-已删除）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`),
-  UNIQUE KEY `uk_email` (`email`),
+  KEY `idx_email` (`email`),
   KEY `idx_phone` (`phone`),
   KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统用户表';
@@ -127,7 +127,9 @@ CREATE TABLE `chat_session` (
 | id | BIGINT | - | NO | - | YES | YES | 消息ID（主键） |
 | session_id | VARCHAR | 100 | NO | - | NO | NO | 会话ID（关联chat_session.session_id） |
 | role | VARCHAR | 20 | NO | - | NO | NO | 消息角色（user/assistant/system） |
+| message_format | VARCHAR | 50 | YES | 'default' | NO | NO | 消息格式类型：default/coze/ronghui |
 | content | TEXT | - | YES | NULL | NO | NO | 消息内容 |
+| raw_content | TEXT | - | YES | NULL | NO | NO | 原始响应内容（JSON格式，用于调试） |
 | files | TEXT | - | YES | NULL | NO | NO | 附件文件信息（JSON格式） |
 | thought | TEXT | - | YES | NULL | NO | NO | 思考过程（AI的思维链） |
 | tasks | LONGTEXT | - | YES | NULL | NO | NO | 任务详情（JSON数组，包含所有任务执行过程） |
@@ -147,7 +149,9 @@ CREATE TABLE `chat_message` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '消息ID（主键）',
   `session_id` VARCHAR(100) NOT NULL COMMENT '会话ID',
   `role` VARCHAR(20) NOT NULL COMMENT '消息角色（user/assistant/system）',
+  `message_format` VARCHAR(50) DEFAULT 'default' COMMENT '消息格式类型：default/coze/ronghui',
   `content` TEXT COMMENT '消息内容',
+  `raw_content` TEXT COMMENT '原始响应内容（JSON格式，用于调试）',
   `files` TEXT COMMENT '附件文件信息（JSON格式）',
   `thought` TEXT COMMENT '思考过程（AI的思维链）',
   `tasks` LONGTEXT COMMENT '任务详情（JSON数组，包含所有任务执行过程）',
@@ -325,7 +329,7 @@ CREATE TABLE `sales_data` (
 | file_id | VARCHAR | 64 | NO | - | NO | NO | 文件唯一标识符（MD5哈希值） |
 | filename | VARCHAR | 255 | NO | - | NO | NO | 文件名称 |
 | file_path | VARCHAR | 500 | NO | - | NO | NO | 文件存储路径 |
-| description | VARCHAR | 1000 | YES | NULL | NO | NO | 文件描述 |
+| description | TEXT | - | YES | NULL | NO | NO | 文件描述 |
 | file_size | BIGINT | - | YES | NULL | NO | NO | 文件大小（字节） |
 | status | TINYINT | - | YES | 0 | NO | NO | 文件状态（0-正常，1-已删除） |
 | request_id | VARCHAR | 200 | YES | NULL | NO | NO | 请求ID/会话ID |
@@ -341,10 +345,10 @@ CREATE TABLE `sales_data` (
 ```sql
 CREATE TABLE `file_info` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '文件记录ID（主键）',
-  `file_id` VARCHAR(64) NOT NULL COMMENT '文件唯一标识符（MD5）',
+  `file_id` VARCHAR(64) NOT NULL COMMENT '文件唯一标识符（MD5哈希值）',
   `filename` VARCHAR(255) NOT NULL COMMENT '文件名称',
   `file_path` VARCHAR(500) NOT NULL COMMENT '文件存储路径',
-  `description` VARCHAR(1000) DEFAULT NULL COMMENT '文件描述',
+  `description` TEXT COMMENT '文件描述',
   `file_size` BIGINT DEFAULT NULL COMMENT '文件大小（字节）',
   `status` TINYINT DEFAULT 0 COMMENT '文件状态（0-正常，1-已删除）',
   `request_id` VARCHAR(200) DEFAULT NULL COMMENT '请求ID/会话ID',
@@ -556,7 +560,7 @@ VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi',
 | tenant_id | VARCHAR | 50 | YES | NULL | NO | NO | 租户ID（仅ronghui类型使用）|
 | login_user_id | VARCHAR | 50 | YES | NULL | NO | NO | 登录用户ID（仅ronghui类型使用）|
 | login_dept_id | VARCHAR | 50 | YES | NULL | NO | NO | 登录部门ID（仅ronghui类型使用）|
-| login_username | VARCHAR | 100 | YES | NULL | NO | NO | 登录用户名（仅ronghui类型使用）|
+| login_username | VARCHAR | 50 | YES | NULL | NO | NO | 登录用户名（仅ronghui类型使用）|
 | is_default | TINYINT | - | YES | 0 | NO | NO | 是否为该用户的默认智能体 |
 | status | TINYINT | - | YES | 1 | NO | NO | 状态：0-禁用 1-启用 |
 | extra_config | JSON | - | YES | NULL | NO | NO | 额外配置（平台特有参数）|
@@ -565,10 +569,13 @@ VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi',
 
 **索引**:
 - PRIMARY KEY (`id`)
-- KEY `idx_user_id` (`user_id`) - 用户ID索引
-- KEY `idx_provider_type` (`provider_type`) - 平台类型索引
-- KEY `idx_bot_id` (`bot_id`) - Bot ID索引
-- UNIQUE KEY `uk_user_provider_name` (`user_id`, `provider_name`) - 唯一索引
+- UNIQUE KEY `uk_creator_provider_name` (`creator_id`, `provider_name`)
+- KEY `idx_user_id` (`user_id`)
+- KEY `idx_provider_type` (`provider_type`)
+- KEY `idx_bot_id` (`bot_id`)
+- KEY `idx_creator_id` (`creator_id`)
+- KEY `idx_is_public` (`is_public`)
+- KEY `idx_category` (`category`)
 
 **建表SQL**:
 ```sql
@@ -584,17 +591,20 @@ CREATE TABLE `agent_provider` (
   `tenant_id` VARCHAR(50) COMMENT '租户ID（仅ronghui类型使用）',
   `login_user_id` VARCHAR(50) COMMENT '登录用户ID（仅ronghui类型使用）',
   `login_dept_id` VARCHAR(50) COMMENT '登录部门ID（仅ronghui类型使用）',
-  `login_username` VARCHAR(100) COMMENT '登录用户名（仅ronghui类型使用）',
+  `login_username` VARCHAR(50) COMMENT '登录用户名（仅ronghui类型使用）',
   `is_default` TINYINT(1) DEFAULT 0 COMMENT '是否为该用户的默认智能体（0-否 1-是）',
   `status` TINYINT(1) DEFAULT 1 COMMENT '状态（0-禁用 1-启用）',
   `extra_config` JSON COMMENT '额外配置（JSON格式，存储平台特有参数）',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_creator_provider_name` (`creator_id`, `provider_name`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_provider_type` (`provider_type`),
   KEY `idx_bot_id` (`bot_id`),
-  UNIQUE KEY `uk_user_provider_name` (`user_id`, `provider_name`)
+  KEY `idx_creator_id` (`creator_id`),
+  KEY `idx_is_public` (`is_public`),
+  KEY `idx_category` (`category`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='智能体服务商配置表';
 ```
 
@@ -632,6 +642,62 @@ CREATE TABLE `agent_provider` (
 - `external_session_id`: 存储外部平台（Coze、融汇）返回的会话ID，用于支持多轮对话
 - 会话创建时如果未指定agent_provider_id，则使用用户的默认智能体
 - 会话中不允许切换智能体，如需更换需创建新会话
+
+---
+
+### 9. sse_message_cache（SSE消息缓存表）
+
+用于临时存储SSE流式响应消息,待流结束后统一持久化到chat_message表。
+
+**表名**: `sse_message_cache`
+
+| 字段名 | 类型 | 长度 | 允许NULL | 默认值 | 主键 | 自增 | 说明 |
+|--------|------|------|----------|--------|------|------|------|
+| id | BIGINT | - | NO | - | YES | YES | 主键ID |
+| session_id | BIGINT | - | NO | - | NO | NO | 会话ID |
+| message_sequence | INT | - | NO | - | NO | NO | 消息序号（从0开始递增） |
+| event_type | VARCHAR | 50 | YES | NULL | NO | NO | SSE事件类型（如message、error、done） |
+| event_data | MEDIUMTEXT | - | YES | NULL | NO | NO | 事件数据内容 |
+| raw_data | MEDIUMTEXT | - | YES | NULL | NO | NO | 原始数据（完整SSE消息） |
+| is_persisted | TINYINT | 1 | YES | 0 | NO | NO | 是否已持久化到chat_message表（0-否 1-是） |
+| create_time | DATETIME | - | YES | CURRENT_TIMESTAMP | NO | NO | 创建时间 |
+
+**索引**:
+- PRIMARY KEY (`id`)
+- KEY `idx_session` (`session_id`, `message_sequence`)
+- KEY `idx_persisted` (`is_persisted`, `create_time`)
+
+**建表SQL**:
+```sql
+CREATE TABLE `sse_message_cache` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `session_id` BIGINT NOT NULL COMMENT '会话ID',
+  `message_sequence` INT NOT NULL COMMENT '消息序号（从0开始递增）',
+  `event_type` VARCHAR(50) DEFAULT NULL COMMENT 'SSE事件类型（如message、error、done）',
+  `event_data` MEDIUMTEXT COMMENT '事件数据内容',
+  `raw_data` MEDIUMTEXT COMMENT '原始数据（完整SSE消息）',
+  `is_persisted` TINYINT(1) DEFAULT 0 COMMENT '是否已持久化到chat_message表（0-否 1-是）',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_session` (`session_id`, `message_sequence`),
+  KEY `idx_persisted` (`is_persisted`, `create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='SSE消息缓存表（临时存储SSE流，待流结束后统一持久化）';
+```
+
+**字段说明**:
+- `session_id`: 关联到chat_session表的主键ID（非session_id字符串）
+- `message_sequence`: 同一会话内的消息序号，确保消息顺序
+- `event_type`: SSE事件类型，如message、error、done等
+- `event_data`: 解析后的事件数据内容
+- `raw_data`: 完整的SSE原始消息，便于调试
+- `is_persisted`: 标记该消息是否已持久化，0表示未持久化
+
+**业务说明**:
+- 该表用于临时缓存SSE流式响应，提高系统响应速度
+- 当SSE流结束时，应将缓存数据汇总并持久化到chat_message表
+- 定期清理已持久化的缓存数据，避免表膨胀
+- 索引`idx_persisted`用于快速查找未持久化的消息
+- 索引`idx_session`用于按会话和序号排序读取消息
 
 ---
 
@@ -755,21 +821,16 @@ DELIMITER ;
   - 后端在创建和更新时验证Coze平台的bot_id必填
 - **迁移脚本**：`database/migration_v2.1_add_bot_id.sql`
 
-### 2025-01-04（删除sse_message_cache缓存表）
-- **删除表**：
-  - `sse_message_cache`: SSE消息缓存表（已废弃）
-- **删除存储过程**：
-  - `clean_persisted_sse_cache()`: 清理SSE缓存的存储过程
-- **删除原因**：
-  - 持久化逻辑未实现（TODO状态），表未发挥实际作用
-  - 新架构采用拦截器 + ConversationDataCollector 直接收集数据
-  - 不再需要中间缓存层，简化系统架构
-- **代码清理**：
-  - 删除 `SSEMessageCache.java` 实体类
-  - 删除 `SSEMessageCacheService.java` 服务类
-  - 删除 `SSEMessageCacheMapper.java` Mapper
-  - 清理3个适配器中的缓存调用代码（Coze、Ronghui、Default）
-- **迁移脚本**：`database/migration_v2.2_remove_sse_cache.sql`
+### 2025-01-04（SSE消息缓存表说明）
+- **说明**：
+  - `sse_message_cache`表在数据库中实际存在,用于临时缓存SSE流式响应
+  - 文档曾标记该表已删除,但实际数据库中未删除
+  - 该表目前用于临时存储SSE事件,待流结束后统一持久化
+- **表作用**：
+  - 临时缓存SSE流式消息,提高响应速度
+  - 支持按序号排序的消息读取
+  - 支持持久化状态标记
+  - 定期清理已持久化数据
 
 ### 2025-01-05（智能体社区功能）
 - **修改表**：
@@ -925,3 +986,31 @@ DELIMITER ;
   - `loginUserId` → Header: login-userid
   - `loginDeptId` → Header: login-deptid
   - `loginUsername` → Header: login-username
+
+### 2025-01-14（数据库文档与实际结构同步修正）
+- **修正目的**: 使文档描述与实际数据库结构完全一致
+- **修正内容**:
+  - **sys_user表**:
+    - 修正`email`字段为允许NULL
+    - 修正`email`索引类型从唯一索引(`uk_email`)改为普通索引(`idx_email`)
+    - 更新建表SQL与实际结构一致
+  - **chat_message表**:
+    - 补充`message_format`字段说明(VARCHAR 50, 默认'default')
+    - 补充`raw_content`字段说明(TEXT类型,用于存储原始响应)
+    - 更新建表SQL包含这两个字段
+  - **file_info表**:
+    - 修正`description`字段类型从VARCHAR(1000)改为TEXT
+    - 更新建表SQL中的字段类型
+  - **agent_provider表**:
+    - 修正`login_username`字段长度从100改为50字符
+    - 修正唯一索引名称从`uk_user_provider_name`改为`uk_creator_provider_name`
+    - 更新索引列表,添加`idx_creator_id`、`idx_is_public`、`idx_category`索引
+    - 更新建表SQL与实际结构一致
+  - **sse_message_cache表**:
+    - 补充完整的表结构文档(该表实际存在,文档中之前缺失)
+    - 添加字段说明、索引、建表SQL和业务说明
+    - 修正变更记录中关于该表"已删除"的错误描述
+- **验证方法**: 通过连接实际数据库导出结构,与文档逐一对比验证
+- **工具支持**: 提供Python脚本`export_db_schema.py`用于自动导出数据库结构
+- **差异报告**: 生成`database_diff_report.md`详细记录所有发现的差异
+- **影响**: 确保文档作为唯一权威参考,所有开发和部署基于准确的表结构

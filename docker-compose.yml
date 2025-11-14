@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: genie-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - genie-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 后端服务
+  backend:
+    build:
+      context: ./genie-backend
+      dockerfile: Dockerfile
+    container_name: genie-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      CODE_INTERPRETER_URL: http://genie-tool:8000
+      DEEP_SEARCH_URL: http://genie-tool:8000
+      MCP_CLIENT_URL: http://genie-client:8188
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      genie-tool:
+        condition: service_started
+      genie-client:
+        condition: service_started
+    networks:
+      - genie-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # AI工具服务
+  genie-tool:
+    build:
+      context: ./genie-tool
+      dockerfile: Dockerfile
+    container_name: genie-tool
+    restart: unless-stopped
+    environment:
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SERVICE_PORT: 8000
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${TOOL_PORT:-8000}:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - genie-network
+    volumes:
+      - tool_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MCP客户端服务
+  genie-client:
+    build:
+      context: ./genie-client
+      dockerfile: Dockerfile
+    container_name: genie-client
+    restart: unless-stopped
+    environment:
+      SERVICE_PORT: 8188
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${CLIENT_PORT:-8188}:8188"
+    networks:
+      - genie-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8188/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 前端应用（Nginx）
+  frontend:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:${BACKEND_PORT:-8080}
+    container_name: genie-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - genie-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  genie-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
+  tool_data:
+    driver: local

@@ -1,0 +1,33 @@
+version: '3.8'
+
+# 开发环境配置
+# 仅启动MySQL数据库，其他服务使用本地开发环境
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: genie-mysql-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: genie_db
+      MYSQL_USER: genie
+      MYSQL_PASSWORD: genie123
+      TZ: Asia/Shanghai
+    ports:
+      - "3307:3306"  # 使用3307避免与本地MySQL冲突
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+      - ./database/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - genie-network-dev
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+networks:
+  genie-network-dev:
+    driver: bridge
+
+volumes:
+  mysql_dev_data:
+    driver: local
