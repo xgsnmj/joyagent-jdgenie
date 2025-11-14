@@ -62,6 +62,43 @@ export interface TongyiStreamData {
 }
 
 /**
+ * 融汇流式输出数据结构
+ */
+export interface RonghuiStreamData {
+  id: string;
+  request_id: string;
+  app_id: string;
+  session_id: string;
+  question: string;
+  inputs: any;
+  group_id: string;
+  message: {
+    code: number;
+    message: string;
+    status: number;
+  };
+  sender: 'system' | 'ai';
+  result_type: string;
+  action: 'roger' | 'region_begin' | 'intermediate' | 'region_finish' | 'finish';
+  output_mode: 'stream' | 'stream_finish' | 'non_stream';
+  data_offset: number;
+  data?: string;
+  region_type?: string;
+  region_name?: string;
+  region_id?: string;
+  graph_id?: string;
+  node_id?: string;
+  node_code?: string;
+  node_type?: string;
+  node_name?: string;
+  stream?: string;
+  reference?: any;
+  create_at?: number;
+  version_id?: string;
+  runtime_file_infos?: any[];
+}
+
+/**
  * 智能体转换器接口
  * 所有智能体转换器都需要实现这个接口
  */
@@ -398,6 +435,98 @@ class TongyiConverter extends BaseStreamConverter<TongyiStreamData> {
 }
 
 /**
+ * 融汇智能体转换器
+ * 将融汇的流式输出转换为本地MESSAGE.Answer格式
+ */
+class RonghuiConverter extends BaseStreamConverter<RonghuiStreamData> {
+  /**
+   * 转换融汇流式输出为MESSAGE.Answer格式
+   */
+  convert(ronghuiData: RonghuiStreamData, event: string): MESSAGE.Answer {
+    // 只处理 sender 为 'ai' 的消息
+    if (ronghuiData.sender !== 'ai') {
+      return this.createHeartbeatResponse(
+        ronghuiData.session_id || '',
+        ronghuiData.request_id || ''
+      );
+    }
+
+    // intermediate 动作 - 增量内容
+    if (ronghuiData.action === 'intermediate' && ronghuiData.data) {
+      // data 字段本身就是增量内容，直接累加
+      const incrementalContent = ronghuiData.data;
+      this.accumulate(incrementalContent);
+      console.log('incrementalContent', incrementalContent);
+
+      // 如果是 stream_finish，表示这是最后一条增量消息，但不重置（可能还有后续事件）
+      if (ronghuiData.output_mode === 'stream_finish') {
+        return buildAnswer({
+          response: this.accumulatedContent,
+          responseAll: this.accumulatedContent,
+          finished: true,
+          traceId: ronghuiData.session_id,
+          reqId: ronghuiData.request_id,
+          packageType: 'data',
+          eventData: {
+            messageTime: ronghuiData.create_at ? new Date(ronghuiData.create_at).toISOString() : new Date().toISOString(),
+            messageId: ronghuiData.id,
+            taskId: ronghuiData.session_id,
+            requestId: ronghuiData.request_id,
+            result: this.accumulatedContent,
+            isFinal: true,
+          },
+        });
+      }
+
+      // 普通增量消息
+      return this.createIncrementalResponse({
+        incrementalContent,
+        messageTime: ronghuiData.create_at ? new Date(ronghuiData.create_at).toISOString() : new Date().toISOString(),
+        messageId: ronghuiData.id,
+        taskId: ronghuiData.session_id,
+        traceId: ronghuiData.session_id,
+        reqId: ronghuiData.request_id,
+      });
+    }
+
+    // region_finish 动作 - 区域完成
+    if (ronghuiData.action === 'region_finish') {
+      return this.createCompletedResponse({
+        finalContent: this.accumulatedContent,
+        messageTime: ronghuiData.create_at ? new Date(ronghuiData.create_at).toISOString() : new Date().toISOString(),
+        messageId: ronghuiData.id,
+        taskId: ronghuiData.session_id,
+        traceId: ronghuiData.session_id,
+        reqId: ronghuiData.request_id,
+      });
+    }
+
+    // finish 动作或 finish 事件 - 整个请求完成
+    if (ronghuiData.action === 'finish' || event === 'finish') {
+      return this.createCompletedResponse({
+        finalContent: this.accumulatedContent,
+        messageTime: ronghuiData.create_at ? new Date(ronghuiData.create_at).toISOString() : new Date().toISOString(),
+        messageId: ronghuiData.id,
+        taskId: ronghuiData.session_id,
+        traceId: ronghuiData.session_id,
+        reqId: ronghuiData.request_id,
+      });
+    }
+
+    // done 事件
+    if (event === 'done') {
+      return this.createDoneResponse();
+    }
+
+    // 其他动作（roger, region_begin等）返回心跳包
+    return this.createHeartbeatResponse(
+      ronghuiData.session_id || '',
+      ronghuiData.request_id || ''
+    );
+  }
+}
+
+/**
  * 智能体转换器工厂
  * 根据智能体类型返回对应的转换器实例
  */
@@ -409,6 +538,8 @@ class AgentConverterFactory {
     this.converters.set('coze', new CozeConverter());
     // 注册通义千问转换器
     this.converters.set('tongyi', new TongyiConverter());
+    // 注册融汇转换器
+    this.converters.set('ronghui', new RonghuiConverter());
   }
 
   /**
