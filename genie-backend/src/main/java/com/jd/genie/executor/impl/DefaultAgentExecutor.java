@@ -1,8 +1,6 @@
 package com.jd.genie.executor.impl;
 
-import com.alibaba.fastjson.JSON;
-import com.jd.genie.agent.agent.AgentContext;
-import com.jd.genie.agent.enums.AgentType;
+
 import com.jd.genie.agent.printer.Printer;
 import com.jd.genie.agent.printer.SSEPrinter;
 import com.jd.genie.agent.tool.ToolCollection;
@@ -12,12 +10,12 @@ import com.jd.genie.context.SessionContext;
 import com.jd.genie.executor.AgentExecutor;
 import com.jd.genie.handler.AgentResponseHandler;
 import com.jd.genie.model.dto.MessageVO;
+import com.jd.genie.model.dto.SessionMessagesResponse;
 import com.jd.genie.model.req.AgentRequest;
 import com.jd.genie.service.AgentHandlerService;
 import com.jd.genie.service.IChatHistoryService;
 import com.jd.genie.service.ToolCollectionBuilder;
 import com.jd.genie.service.impl.AgentHandlerFactory;
-import com.jd.genie.util.ConversationDataCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -136,10 +134,11 @@ public class DefaultAgentExecutor implements AgentExecutor {
 
         try {
             // 获取历史消息
-            List<MessageVO> historyMessages = chatHistoryService.getSessionMessages(
+            SessionMessagesResponse response = chatHistoryService.getSessionMessages(
                     context.getSessionId(),
                     context.getUserId()
             );
+            List<MessageVO> historyMessages = response.getMessages();
 
             // 只保留最近N轮对话
             int historyRounds = genieConfig.getConversationHistoryRounds();
@@ -241,9 +240,6 @@ public class DefaultAgentExecutor implements AgentExecutor {
 
                 log.info("[默认执行器] Handler执行完成 - requestId: {}", context.getRequestId());
 
-                // 4. 保存AI回复
-                saveAssistantReply(context);
-
                 // 5. 完成SSE连接
                 context.getEmitter().complete();
 
@@ -264,97 +260,5 @@ public class DefaultAgentExecutor implements AgentExecutor {
                 }
             }
         });
-    }
-
-    /**
-     * 保存AI回复
-     * 包含回复内容、文件信息、思考过程、任务详情等完整数据
-     */
-    private void saveAssistantReply(SessionContext context) {
-        if (!context.isLoggedIn() || context.getSessionId() == null) {
-            log.debug("[默认执行器] 跳过AI回复保存 - 未登录或无sessionId");
-            return;
-        }
-
-        try {
-            String assistantReply = context.getAgentContext().getAssistantResponse().toString();
-
-            if (assistantReply.isEmpty()) {
-                log.warn("[默认执行器] AI回复为空，未保存 - sessionId: {}", context.getSessionId());
-                return;
-            }
-
-            // 提取文件信息
-            String filesJson = extractFilesJson(context);
-
-            // 从数据收集器获取所有 GptProcessResult 消息（JSON 格式）
-            ConversationDataCollector collector = context.getAgentContext().getDataCollector();
-            String allMessagesJson = collector != null ? collector.getAllMessagesJson() : null;
-
-            // 保存消息（thought/tasks/plan 设为 null，所有数据在 metadata 中）
-            chatHistoryService.saveMessage(
-                    context.getSessionId(),
-                    "assistant",
-                    assistantReply,
-                    filesJson,
-                    null,  // thought = null
-                    null,  // tasks = null
-                    null,  // plan = null
-                    allMessagesJson  // metadata = 所有 GptProcessResult
-            );
-
-            log.info("[默认执行器] AI回复已保存 - sessionId: {}, length: {}, hasFiles: {}, hasMetadata: {}",
-                    context.getSessionId(),
-                    assistantReply.length(),
-                    filesJson != null,
-                    allMessagesJson != null);
-
-            // 异步生成会话标题
-            chatHistoryService.generateSessionTitleAsync(
-                    context.getSessionId(),
-                    context.getOriginalQuery(),
-                    assistantReply
-            );
-
-        } catch (Exception e) {
-            log.error("[默认执行器] 保存AI回复失败 - sessionId: {}, error: {}",
-                    context.getSessionId(), e.getMessage(), e);
-            // 不抛出异常，允许继续执行
-        }
-    }
-
-    /**
-     * 提取文件信息JSON
-     * 过滤内部文件，只保留用户可见的文件
-     */
-    private String extractFilesJson(SessionContext context) {
-        List<com.jd.genie.agent.dto.File> productFiles = context.getAgentContext().getProductFiles();
-
-        if (productFiles == null || productFiles.isEmpty()) {
-            return null;
-        }
-
-        try {
-            // 过滤内部文件，只保留用户可见的文件
-            List<com.jd.genie.agent.dto.File> visibleFiles = productFiles.stream()
-                    .filter(file -> file.getIsInternalFile() == null || !file.getIsInternalFile())
-                    .collect(Collectors.toList());
-
-            if (visibleFiles.isEmpty()) {
-                return null;
-            }
-
-            String filesJson = JSON.toJSONString(visibleFiles);
-
-            log.debug("[默认执行器] 文件信息已提取 - sessionId: {}, fileCount: {}",
-                    context.getSessionId(), visibleFiles.size());
-
-            return filesJson;
-
-        } catch (Exception e) {
-            log.error("[默认执行器] 序列化文件信息失败 - sessionId: {}, error: {}",
-                    context.getSessionId(), e.getMessage(), e);
-            return null;
-        }
     }
 }

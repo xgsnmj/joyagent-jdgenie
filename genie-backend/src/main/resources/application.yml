@@ -5,7 +5,7 @@ spring:
     encoding: UTF-8
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://192.168.4.227:3306/genie_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://10.2.243.53:3306/genie_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: genie
     password: whj88364399
     hikari:
@@ -311,7 +311,7 @@ Assistant：现在需要在上一步列举出的11、22、33、44、55、66、77
       apiKey: key
     db-config:
       type: mysql
-      host: 192.168.4.227
+      host: 10.2.243.53
       port: 3306
       schema: genie_db
       username: genie

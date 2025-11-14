@@ -236,6 +236,23 @@
             <artifactId>calcite-core</artifactId>
             <version>1.34.0</version>
         </dependency>
+
+        <!-- Spring Retry（用于@Retryable注解） -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-aspects</artifactId>
+        </dependency>
+
+        <!-- Javax Annotation API（用于@PostConstruct等注解） -->
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.3.2</version>
+        </dependency>
     </dependencies>
 
     <build>

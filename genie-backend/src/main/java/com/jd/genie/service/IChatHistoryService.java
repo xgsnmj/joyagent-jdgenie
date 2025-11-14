@@ -1,6 +1,7 @@
 package com.jd.genie.service;
 
 import com.jd.genie.model.dto.MessageVO;
+import com.jd.genie.model.dto.SessionMessagesResponse;
 import com.jd.genie.model.dto.SessionVO;
 import java.util.List;
 
@@ -99,13 +100,14 @@ public interface IChatHistoryService {
     SessionVO createSession(Long userId, String title);
 
     /**
-     * 获取会话的消息列表
+     * 获取会话的消息列表（含智能体信息）
+     * 返回包含智能体ID和类型的完整响应，便于前端正确解析消息
      *
      * @param sessionId 会话ID
      * @param userId    用户ID（用于权限校验）
-     * @return 消息列表
+     * @return 会话消息响应对象（包含智能体信息和消息列表）
      */
-    List<MessageVO> getSessionMessages(String sessionId, Long userId);
+    SessionMessagesResponse getSessionMessages(String sessionId, Long userId);
 
     /**
      * 异步生成会话标题

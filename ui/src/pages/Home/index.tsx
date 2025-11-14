@@ -40,6 +40,7 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
   const [loadedSessionId, setLoadedSessionId] = useState<string | null>(null);
   const [historyMessages, setHistoryMessages] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [agentType, setAgentType] = useState<CHAT.AgentType>("default");
 
   // 智能体选择状态
   const [selectedProviderId, setSelectedProviderId] = useState<number>();
@@ -106,8 +107,9 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
     async (sessionId: string) => {
       try {
         setLoadingHistory(true);
-        const messages = await getSessionMessages(sessionId);
-
+        const { messages, agentProviderType } =
+          await getSessionMessages(sessionId);
+        setAgentType(agentProviderType);
         if (messages && messages.length > 0) {
           // 只设置历史消息，不设置inputInfo
           // 这样ChatView会直接显示历史消息，而不会重新发送
@@ -144,7 +146,7 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
         setLoadingHistory(false);
       }
     },
-    [sessions, providers, setCurrentProvider]
+    [sessions]
   );
 
   /**
@@ -199,6 +201,7 @@ const Home: GenieType.FC<HomeProps> = memo(() => {
           product={product}
           initialSessionId={loadedSessionId}
           initialMessages={historyMessages}
+          agentType={agentType}
         />
       );
     }

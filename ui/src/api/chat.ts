@@ -1,18 +1,18 @@
-import request from '@/utils/request';
+import request from "@/utils/request";
 
 /**
  * 会话信息
  */
 export interface Session {
-  id: string | number;          // 数据库主键
-  sessionId: string;             // 业务唯一标识符（UUID）
+  id: string | number; // 数据库主键
+  sessionId: string; // 业务唯一标识符（UUID）
   title: string;
   createTime: string;
   updateTime: string;
   messageCount?: number;
   agentType?: string;
   outputStyle?: string;
-  agentProviderId?: number;      // 智能体配置ID（用于历史会话恢复智能体配置）
+  agentProviderId?: number; // 智能体配置ID（用于历史会话恢复智能体配置）
   [key: string]: any;
 }
 
@@ -22,7 +22,7 @@ export interface Session {
 export interface Message {
   id: string | number;
   sessionId: string | number;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   createTime: string;
   [key: string]: any;
@@ -55,7 +55,7 @@ export interface PaginationResponse<T> {
 export const getSessions = (
   params?: PaginationParams
 ): Promise<PaginationResponse<Session>> => {
-  return request.get('/api/chat/sessions', { params });
+  return request.get("/api/chat/sessions", { params });
 };
 
 /**
@@ -63,7 +63,14 @@ export const getSessions = (
  * @param sessionId - 会话ID
  * @returns Promise<Message[]>
  */
-export const getSessionMessages = (sessionId: string | number): Promise<Message[]> => {
+export const getSessionMessages = (
+  sessionId: string | number
+): Promise<{
+  messages: Message[];
+  agentProviderType: CHAT.AgentType;
+  agentProviderId?: number;
+  sessionId: string;
+}> => {
   return request.get(`/api/chat/sessions/${sessionId}/messages`);
 };
 
@@ -82,5 +89,5 @@ export const deleteSession = (sessionId: string | number): Promise<void> => {
  * @returns Promise<Session>
  */
 export const createSession = (title?: string): Promise<Session> => {
-  return request.post('/api/chat/sessions', title ? { title } : {});
+  return request.post("/api/chat/sessions", title ? { title } : {});
 };

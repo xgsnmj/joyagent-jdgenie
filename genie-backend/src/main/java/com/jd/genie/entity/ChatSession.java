@@ -61,11 +61,13 @@ public class ChatSession implements Serializable {
     private String title;
 
     /**
-     * Agent类型
-     * 标识使用的AI代理类型，例如：
-     * - data_agent: 数据分析代理
-     * - code_agent: 代码生成代理
-     * - general: 通用对话代理
+     * Agent工作类型
+     * 标识智能体的工作模式，例如：
+     * - plansolve: 规划解决模式（PlanSolve）
+     * - react: React模式（推理-行动循环）
+     * - router: 路由器模式（未支持）
+     * - workflow: 工作流模式（未支持）
+     * - comprehensive: 综合模式（未支持）
      */
     private String agentType;
 

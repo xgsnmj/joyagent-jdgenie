@@ -28,6 +28,7 @@ type Props = {
   initialSessionId?: string | null;
   // 历史会话内容
   initialMessages?: any[];
+  agentType: CHAT.AgentType;
 };
 
 const ChatView: GenieType.FC<Props> = (props) => {
@@ -125,7 +126,6 @@ const ChatView: GenieType.FC<Props> = (props) => {
           // TODO
         } else {
           const historyChatList: CHAT.ChatItem[] = [];
-
           // 遍历历史消息，奇数项是用户问题，偶数项是AI回答
           for (let i = 0; i < historyMessageList.length; i += 2) {
             const userMessage = historyMessageList[i];
@@ -150,7 +150,8 @@ const ChatView: GenieType.FC<Props> = (props) => {
             if (assistantMessage && assistantMessage.role === "assistant") {
               const taskData = processAssistantHistoryMessage(
                 chatItem,
-                assistantMessage
+                assistantMessage,
+                props.agentType
               );
 
               if (taskData) {
@@ -546,7 +547,9 @@ const ChatView: GenieType.FC<Props> = (props) => {
           })}
         </div>
         <GeneralInput
-          placeholder={loading ? "任务进行中" : `希望 ${AGENT_NAME} 为你做哪些任务呢？`}
+          placeholder={
+            loading ? "任务进行中" : `希望 ${AGENT_NAME} 为你做哪些任务呢？`
+          }
           showBtn={false}
           size="medium"
           disabled={loading}

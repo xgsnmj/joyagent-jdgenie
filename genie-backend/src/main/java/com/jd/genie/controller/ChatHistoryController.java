@@ -3,6 +3,7 @@ package com.jd.genie.controller;
 import com.jd.genie.common.Result;
 import com.jd.genie.model.dto.MessageVO;
 import com.jd.genie.model.dto.PageResponse;
+import com.jd.genie.model.dto.SessionMessagesResponse;
 import com.jd.genie.model.dto.SessionVO;
 import com.jd.genie.service.IChatHistoryService;
 import com.jd.genie.util.JwtUtil;
@@ -148,15 +149,15 @@ public class ChatHistoryController {
     }
 
     /**
-     * 获取会话的消息列表
+     * 获取会话的消息列表（含智能体信息）
      *
      * @param sessionId 会话ID
      * @param request   HTTP请求对象
-     * @return 消息列表
+     * @return 会话消息响应对象（包含智能体信息和消息列表）
      */
     @GetMapping("/sessions/{sessionId}/messages")
-    @Operation(summary = "获取会话消息", description = "获取指定会话的所有消息记录")
-    public Result<List<MessageVO>> getSessionMessages(
+    @Operation(summary = "获取会话消息", description = "获取指定会话的所有消息记录及智能体信息")
+    public Result<SessionMessagesResponse> getSessionMessages(
             @Parameter(description = "会话ID") @PathVariable String sessionId,
             HttpServletRequest request) {
         try {
@@ -166,9 +167,9 @@ public class ChatHistoryController {
                 return Result.error(401, "未登录");
             }
 
-            // 获取消息列表
-            List<MessageVO> messages = chatHistoryService.getSessionMessages(sessionId, userId);
-            return Result.success(messages);
+            // 获取会话消息响应对象（包含智能体信息）
+            SessionMessagesResponse response = chatHistoryService.getSessionMessages(sessionId, userId);
+            return Result.success(response);
         } catch (Exception e) {
             log.error("获取会话消息失败: sessionId={}, error={}", sessionId, e.getMessage(), e);
             return Result.error(e.getMessage());

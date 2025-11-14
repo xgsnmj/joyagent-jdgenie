@@ -8,9 +8,8 @@ import com.jd.genie.entity.ChatMessage;
 import com.jd.genie.entity.ChatSession;
 import com.jd.genie.executor.AgentExecutor;
 import com.jd.genie.model.dto.MessageVO;
+import com.jd.genie.model.dto.SessionMessagesResponse;
 import com.jd.genie.service.IChatHistoryService;
-import com.jd.genie.util.ConversationDataCollector;
-import com.jd.genie.util.InterceptableSseEmitter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -156,10 +155,11 @@ public class ExternalAgentExecutor implements AgentExecutor {
 
         try {
             // 获取历史消息（MessageVO格式）
-            List<MessageVO> historyMessages = chatHistoryService.getSessionMessages(
+            SessionMessagesResponse response = chatHistoryService.getSessionMessages(
                     context.getSessionId(),
                     context.getUserId()
             );
+            List<MessageVO> historyMessages = response.getMessages();
 
             // 转换为ChatMessage格式
             List<ChatMessage> history = historyMessages.stream()
@@ -207,48 +207,9 @@ public class ExternalAgentExecutor implements AgentExecutor {
 
         log.debug("[外部执行器] 适配器已获取 - adapterType: {}", adapter.getClass().getSimpleName());
 
-        // 创建数据收集器
-        ConversationDataCollector dataCollector = new ConversationDataCollector();
-
         // 获取目标emitter（来自context）
         SseEmitter targetEmitter = context.getEmitter();
 
-        // 创建拦截器emitter，用于收集数据
-//        InterceptableSseEmitter interceptorEmitter = new InterceptableSseEmitter(
-//                30 * 60 * 1000L,
-//                data -> {
-//                    try {
-//                        // 拦截到的数据：收集 + 转发
-//                        String content = extractContentFromData(data);
-//                        if (content != null && !content.isEmpty()) {
-//                            dataCollector.collectRawContent(content);
-//                        }
-//
-//                        // 转发给前端
-//                        targetEmitter.send(data);
-//
-//                        log.debug("[外部执行器] SSE数据已拦截并转发 - sessionId: {}", context.getSessionId());
-//                    } catch (Exception e) {
-//                        log.error("[外部执行器] 拦截SSE数据失败 - sessionId: {}", context.getSessionId(), e);
-//                    }
-//                }
-//        );
-//
-//        // 注册完成事件：保存AI回复
-//        interceptorEmitter.onCompletion(() -> {
-//            log.info("[外部执行器] SSE流完成，开始保存AI回复 - sessionId: {}", context.getSessionId());
-//            saveAssistantReply(context, dataCollector);
-//        });
-//
-//        // 注册错误事件：转发错误
-//        interceptorEmitter.onError((ex) -> {
-//            log.error("[外部执行器] SSE流错误 - sessionId: {}", context.getSessionId(), ex);
-//            try {
-//                targetEmitter.completeWithError(ex);
-//            } catch (Exception e) {
-//                log.error("[外部执行器] 转发错误失败", e);
-//            }
-//        });
 
         // 发送请求（使用拦截器emitter）
         AgentAdapter.ChatResponse response = adapter.sendChatRequest(
@@ -277,69 +238,4 @@ public class ExternalAgentExecutor implements AgentExecutor {
                 context.getRequestId(), provider.getProviderType());
     }
 
-    /**
-     * 保存AI回复到数据库
-     * 从ConversationDataCollector中提取收集的原始内容
-     */
-    private void saveAssistantReply(SessionContext context, ConversationDataCollector dataCollector) {
-        if (!context.isLoggedIn() || context.getSessionId() == null) {
-            log.debug("[外部执行器] 跳过保存AI回复 - 未登录或无sessionId");
-            return;
-        }
-
-        try {
-            // 提取完整的AI回复内容
-            String fullContent = dataCollector.getRawContentAsString();
-
-            if (fullContent == null || fullContent.isEmpty()) {
-                log.warn("[外部执行器] AI回复内容为空，跳过保存 - sessionId: {}", context.getSessionId());
-                return;
-            }
-
-            // 保存AI回复
-            chatHistoryService.saveMessage(
-                    context.getSessionId(),
-                    "assistant",
-                    fullContent,
-                    null
-            );
-
-            log.info("[外部执行器] AI回复已保存 - sessionId: {}, contentLength: {}",
-                    context.getSessionId(), fullContent.length());
-
-        } catch (Exception e) {
-            log.error("[外部执行器] 保存AI回复失败 - sessionId: {}, error: {}",
-                    context.getSessionId(), e.getMessage(), e);
-            // 不抛出异常，允许继续执行
-        }
-    }
-
-    /**
-     * 从SSE数据中提取内容
-     * 支持多种SSE数据格式
-     */
-    private String extractContentFromData(Object data) {
-        if (data == null) {
-            return null;
-        }
-
-        String dataStr = data.toString();
-
-        // 处理SseEmitter.event()格式
-        if (dataStr.contains("data:")) {
-            // 简单提取data:后的内容
-            int dataIndex = dataStr.indexOf("data:");
-            if (dataIndex != -1) {
-                String content = dataStr.substring(dataIndex + 5).trim();
-                // 移除可能的引号
-                if (content.startsWith("\"") && content.endsWith("\"")) {
-                    content = content.substring(1, content.length() - 1);
-                }
-                return content;
-            }
-        }
-
-        // 直接返回字符串内容
-        return dataStr;
-    }
 }

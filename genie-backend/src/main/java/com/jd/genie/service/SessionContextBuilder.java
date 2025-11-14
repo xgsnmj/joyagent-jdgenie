@@ -5,7 +5,6 @@ import com.jd.genie.agent.util.DateUtil;
 import com.jd.genie.config.GenieConfig;
 import com.jd.genie.context.SessionContext;
 import com.jd.genie.model.req.AgentRequest;
-import com.jd.genie.util.ConversationDataCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -132,11 +131,7 @@ public class SessionContextBuilder {
                 .agentType(request.getAgentType())
                 .isStream(Objects.nonNull(request.getIsStream()) ? request.getIsStream() : false)
                 .templateType("dataAgent".equals(request.getOutputStyle()) ? "fix" : "empty")
-                .assistantResponse(new StringBuilder())
                 .build();
-
-        // 初始化数据收集器（用于收集思考过程、任务详情等）
-        agentContext.setDataCollector(new ConversationDataCollector());
 
         log.debug("[上下文构建] AgentContext已创建 - agentType: {}, isStream: {}, templateType: {}",
                 agentContext.getAgentType(),
