@@ -8,6 +8,7 @@ import com.jd.genie.entity.ChatMessage;
 import com.jd.genie.entity.ChatSession;
 import com.jd.genie.executor.AgentExecutor;
 import com.jd.genie.model.dto.MessageVO;
+import com.jd.genie.model.dto.SessionMessagesResponse;
 import com.jd.genie.service.IChatHistoryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -154,10 +155,11 @@ public class ExternalAgentExecutor implements AgentExecutor {
 
         try {
             // 获取历史消息（MessageVO格式）
-            List<MessageVO> historyMessages = chatHistoryService.getSessionMessages(
+            SessionMessagesResponse response = chatHistoryService.getSessionMessages(
                     context.getSessionId(),
                     context.getUserId()
             );
+            List<MessageVO> historyMessages = response.getMessages();
 
             // 转换为ChatMessage格式
             List<ChatMessage> history = historyMessages.stream()
